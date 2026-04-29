@@ -1,0 +1,181 @@
+import { Bell, Library, LogOut, Music2, LayoutDashboard, MessagesSquare } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import BrandMark from './BrandMark';
+import { getAppVersion } from '../utils/yowl';
+import SettingsMenu from './SettingsMenu';
+import { normalizeUsername } from '../utils/users';
+import UserAvatar from './UserAvatar';
+
+function getPreferenceStorageKey(username) {
+  return `yowlmaffia-preferences:${normalizeUsername(username || 'guest') || 'guest'}`;
+}
+
+function resolveThemeMode(mode) {
+  if (mode === 'light' || mode === 'dark') {
+    return mode;
+  }
+
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    return 'light';
+  }
+
+  return 'dark';
+}
+
+export default function AppShell({
+  user,
+  onSignOut,
+  notificationCount = 0,
+  onProfileSave,
+  onAvatarUpload,
+  onAvatarDelete,
+  onPublishUpdate,
+  children
+}) {
+  const [appVersion, setAppVersion] = useState('dev');
+  const [themeMode, setThemeMode] = useState('system');
+  const storageKey = useMemo(() => getPreferenceStorageKey(user?.username), [user?.username]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getAppVersion()
+      .then((version) => {
+        if (mounted) {
+          setAppVersion(version || 'dev');
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setAppVersion('dev');
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(storageKey);
+    if (!stored) {
+      setThemeMode('system');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed?.themeMode) {
+        setThemeMode(parsed.themeMode);
+      } else {
+        setThemeMode('system');
+      }
+    } catch (error) {
+      setThemeMode('system');
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const root = document.documentElement;
+    const resolvedTheme = resolveThemeMode(themeMode);
+    root.dataset.theme = resolvedTheme;
+    root.dataset.themeMode = themeMode;
+    root.style.colorScheme = resolvedTheme;
+
+    if (typeof window === 'undefined' || themeMode !== 'system') {
+      return;
+    }
+
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const handleChange = () => {
+      const nextTheme = resolveThemeMode('system');
+      root.dataset.theme = nextTheme;
+      root.style.colorScheme = nextTheme;
+    };
+
+    media.addEventListener('change', handleChange);
+    return () => {
+      media.removeEventListener('change', handleChange);
+    };
+  }, [themeMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify({ themeMode }));
+  }, [storageKey, themeMode]);
+
+  return (
+    <div className="app-shell">
+      <header className="app-shell__header">
+        <BrandMark />
+
+        <nav className="app-shell__nav">
+          <NavLink to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+            <LayoutDashboard size={16} />
+            Dashboard
+          </NavLink>
+          <NavLink to="/player" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+            <Music2 size={16} />
+            Player
+          </NavLink>
+          <NavLink to="/chat" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+            <MessagesSquare size={16} />
+            Chat
+          </NavLink>
+          <NavLink to="/songs" className="nav-link nav-link--ghost">
+            <Library size={16} />
+            Songs
+          </NavLink>
+        </nav>
+
+        <div className="app-shell__user">
+          <div className="app-shell__status">
+            <div className="app-shell__notifications" aria-live="polite">
+              <Bell size={15} />
+              <span>{notificationCount > 0 ? `${notificationCount} nieuw` : 'Alles bijgewerkt'}</span>
+            </div>
+
+            <div className="user-chip">
+              <UserAvatar user={user} size={42} showDot />
+              <div>
+                <strong>{user?.displayName || 'Onbekend'}</strong>
+                <span>{user?.status_message || user?.bio || 'Beschikbaar'}</span>
+              </div>
+            </div>
+          </div>
+
+          <SettingsMenu
+            user={user}
+            themeMode={themeMode}
+            onThemeModeChange={setThemeMode}
+            onProfileSave={onProfileSave}
+            onAvatarUpload={onAvatarUpload}
+            onAvatarDelete={onAvatarDelete}
+            onPublishUpdate={onPublishUpdate}
+          />
+
+          <button className="icon-text-button" type="button" onClick={onSignOut}>
+            <LogOut size={16} />
+            Uitloggen
+          </button>
+        </div>
+      </header>
+
+      <div className="app-shell__version">Build {appVersion}</div>
+
+      <main className="app-shell__main">{children}</main>
+    </div>
+  );
+}

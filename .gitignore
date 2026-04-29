@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+release/
+.env
+.env.local
+.env.*.local
+build.log
+*.log
+*.tmp
+*.temp
+distribution/github-release/YOWLMAFFIA.exe
+distribution/github-release/YOWLMAFFIA.exe.blockmap

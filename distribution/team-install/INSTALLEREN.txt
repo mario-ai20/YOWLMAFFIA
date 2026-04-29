@@ -1,0 +1,11 @@
+YOWLMAFFIA - installeren
+
+Voor teamleden:
+1. Download en installeer YOWLMAFFIA.exe.
+2. Open de app.
+3. Log in.
+4. Klaar.
+
+Geen Node.js nodig.
+Geen aparte setup nodig.
+Alle data, chats, songs en updates komen online binnen via de app.

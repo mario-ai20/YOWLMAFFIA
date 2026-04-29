@@ -1,0 +1,71 @@
+{
+  "name": "yowlmaffia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "YOWLMAFFIA writers portal desktop app",
+  "author": "Mattiz Hoornaert",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "build:renderer": "vite build",
+    "build": "npm run icons:generate && npm run build:renderer && electron-builder",
+    "start": "electron .",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@fontsource/manrope": "^5.2.7",
+    "@fontsource/space-grotesk": "^5.2.7",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.105.1",
+    "lucide-react": "^0.536.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.6.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@vitejs/plugin-react": "^5.0.2",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.35.0",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.3",
+    "vite": "^7.1.6"
+  },
+  "build": {
+    "appId": "com.yowlmaffia.portal",
+    "productName": "YOWLMAFFIA",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build",
+        "to": "build",
+        "filter": [
+          "icon.png"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "YOWLMAFFIA.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}
