@@ -1,9 +1,14 @@
 import { Bell, CheckCheck, Clock3, Plus, RefreshCw, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Music2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import SongCard from '../components/SongCard';
+import TrackBrowser from '../components/TrackBrowser';
+import { usePlayer } from '../components/PlayerProvider';
 import UserAvatar from '../components/UserAvatar';
+import { createDefaultCoverDataUrl } from '../utils/defaultCover';
 import { formatRelativeTime } from '../utils/dates';
 import { normalizeUsername } from '../utils/users';
+import { getDemoLibrary } from '../utils/demoMedia';
 
 function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick }) {
   return (
@@ -25,11 +30,50 @@ function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick 
   );
 }
 
+function DashboardMusicStrip() {
+  const { currentTrack, isPlaying, togglePlay, goToNextTrack, goToPreviousTrack } = usePlayer();
+
+  if (!currentTrack) {
+    return (
+      <div className="dashboard-music__now-playing dashboard-music__now-playing--empty">
+        <strong>Geen track geselecteerd</strong>
+        <span>Klik op een track om muziek af te spelen.</span>
+      </div>
+    );
+  }
+
+  const coverUrl = currentTrack.coverUrl || createDefaultCoverDataUrl(currentTrack.title || 'Audio', 'track');
+
+  return (
+    <div className="dashboard-music__now-playing">
+      <img className="dashboard-music__cover" src={coverUrl} alt={currentTrack.title} />
+      <div className="dashboard-music__copy">
+        <span className="eyebrow">Nu aan het spelen</span>
+        <strong>{currentTrack.title}</strong>
+        <p>{currentTrack.name}</p>
+      </div>
+      <div className="dashboard-music__transport">
+        <button className="icon-button icon-button--small" type="button" onClick={goToPreviousTrack} aria-label="Vorige">
+          <SkipBack size={16} />
+        </button>
+        <button className="play-button button--small" type="button" onClick={togglePlay} aria-label={isPlaying ? 'Pauze' : 'Speel af'}>
+          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+        </button>
+        <button className="icon-button icon-button--small" type="button" onClick={goToNextTrack} aria-label="Volgende">
+          <SkipForward size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage({
   currentUser,
   songs = [],
   loading = false,
   allowedUsers = [],
+  tracks = [],
+  tracksLoading = false,
   notifications = [],
   notificationsLoading = false,
   activity = [],
@@ -39,8 +83,12 @@ export default function DashboardPage({
   onOpenSong,
   onRefreshSongs,
   onOpenNotification,
-  onSendAnnouncement
+  onSendAnnouncement,
+  onUploadTrack,
+  onRefreshTracks
 }) {
+  const fileInputRef = useRef(null);
+  const { playFromQueue, currentTrack } = usePlayer();
   const [announcementRecipient, setAnnouncementRecipient] = useState('team');
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
@@ -51,6 +99,17 @@ export default function DashboardPage({
   const unreadNotifications = notifications.filter((notification) => !notification.is_read);
   const isSongsPage = pageMode === 'songs';
   const canSendAnnouncements = normalizeUsername(currentUser?.username) === 'mattiz' && typeof onSendAnnouncement === 'function';
+  const canManageTracks = normalizeUsername(currentUser?.username) === 'mattiz' && typeof onUploadTrack === 'function';
+  const displayedTracks = useMemo(() => (tracks.length ? tracks : getDemoLibrary()), [tracks]);
+
+  async function handleTrackUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (file && canManageTracks) {
+      await onUploadTrack(file);
+    }
+  }
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -139,6 +198,71 @@ export default function DashboardPage({
 
       {!isSongsPage ? (
         <aside className="dashboard-page__sidebar">
+          <section className="panel dashboard-music">
+            <div className="panel__header">
+              <span className="eyebrow">Muziek</span>
+              <h2>
+                <Music2 size={16} />
+                Tracks afspelen
+              </h2>
+
+              <div className="dashboard-music__actions">
+                {typeof onRefreshTracks === 'function' ? (
+                  <button className="button button--secondary button--small" type="button" onClick={onRefreshTracks}>
+                    <RefreshCw size={15} />
+                    Herladen
+                  </button>
+                ) : null}
+                {canManageTracks ? (
+                  <button className="button button--primary button--small" type="button" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={15} />
+                    Upload track
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {canManageTracks ? (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,video/mp4"
+                hidden
+                onChange={handleTrackUpload}
+              />
+            ) : null}
+
+            <div className="dashboard-music__hint">Klik op een track om hem af te spelen.</div>
+
+            {tracksLoading ? (
+              <div className="empty-state empty-state--compact">
+                <strong>Tracks laden...</strong>
+                <p>We lezen de audio-bibliotheek in.</p>
+              </div>
+            ) : displayedTracks.length ? (
+              <div className="dashboard-music__browser">
+                <TrackBrowser
+                  tracks={displayedTracks}
+                  activeTrackId={currentTrack?.id || null}
+                  onPlay={(track) => {
+                    const queue = displayedTracks;
+                    const index = queue.findIndex((item) => item.id === track.id);
+                    if (index >= 0) {
+                      playFromQueue(queue, index, true);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="empty-state empty-state--compact">
+                <strong>Nog geen tracks</strong>
+                <p>Mattiz kan hier een audio-bestand uploaden.</p>
+              </div>
+            )}
+
+            <DashboardMusicStrip />
+          </section>
+
           {canSendAnnouncements ? (
             <section className="panel dashboard-compose">
               <div className="panel__header">

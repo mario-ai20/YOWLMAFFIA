@@ -1,4 +1,4 @@
-import { Bell, Library, LogOut, Music2, LayoutDashboard, MessagesSquare } from 'lucide-react';
+import { Bell, Library, LogOut, LayoutDashboard, MessagesSquare } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
@@ -126,10 +126,6 @@ export default function AppShell({
           <NavLink end to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             <LayoutDashboard size={16} />
             Dashboard
-          </NavLink>
-          <NavLink end to="/player" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
-            <Music2 size={16} />
-            Player
           </NavLink>
           <NavLink end to="/chat" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             <MessagesSquare size={16} />

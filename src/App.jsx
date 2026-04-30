@@ -4,7 +4,6 @@ import AppShell from './components/AppShell';
 import EditorPage from './components/EditorPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import PlayerPage from './pages/PlayerPage';
 import ChatPage from './pages/ChatPage';
 import SetupNotice from './components/SetupNotice';
 import UpdateBanner from './components/UpdateBanner';
@@ -1721,6 +1720,10 @@ export default function App() {
   }
 
   async function handleUploadTrack(file, song) {
+    if (normalizeUsername(activeUser?.username) !== 'mattiz') {
+      throw new Error('Alleen Mattiz kan tracks uploaden.');
+    }
+
     const uploaded = await uploadFileToStorage(
       file,
       'audio',
@@ -1802,6 +1805,8 @@ export default function App() {
                 songs={songs}
                 loading={songsLoading}
                 allowedUsers={allowedUsers}
+                tracks={tracks}
+                tracksLoading={tracksLoading}
                 notifications={notifications}
                 notificationsLoading={notificationsLoading}
                 activity={activity}
@@ -1812,6 +1817,8 @@ export default function App() {
                 onRefreshSongs={loadSongs}
                 onOpenNotification={handleOpenNotification}
                 onSendAnnouncement={handleSendAnnouncement}
+                onUploadTrack={handleUploadTrack}
+                onRefreshTracks={loadTracks}
               />
             }
           />
@@ -1823,6 +1830,8 @@ export default function App() {
                 songs={songs}
                 loading={songsLoading}
                 allowedUsers={allowedUsers}
+                tracks={tracks}
+                tracksLoading={tracksLoading}
                 notifications={notifications}
                 notificationsLoading={notificationsLoading}
                 activity={activity}
@@ -1833,6 +1842,8 @@ export default function App() {
                 onRefreshSongs={loadSongs}
                 onOpenNotification={handleOpenNotification}
                 onSendAnnouncement={handleSendAnnouncement}
+                onUploadTrack={handleUploadTrack}
+                onRefreshTracks={loadTracks}
               />
             }
           />
@@ -1855,7 +1866,7 @@ export default function App() {
               />
             }
           />
-          <Route path="/player" element={<PlayerPage tracks={tracks} loading={tracksLoading} onUploadTrack={handleUploadTrack} onRefreshTracks={loadTracks} />} />
+          <Route path="/player" element={<Navigate to="/dashboard" replace />} />
           <Route
             path="/chat"
             element={
