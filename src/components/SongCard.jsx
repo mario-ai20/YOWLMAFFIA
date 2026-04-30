@@ -1,11 +1,11 @@
 import { CalendarClock, ChevronRight } from 'lucide-react';
-import { formatUpdatedAt } from '../utils/dates';
+import { formatRelativeTime } from '../utils/dates';
 import { createDefaultCoverDataUrl } from '../utils/defaultCover';
 import { findAllowedUser } from '../utils/users';
 import { getSongStatusLabel, getSongStatusTone } from '../utils/songStatus';
 import UserAvatar from './UserAvatar';
 
-export default function SongCard({ song, onOpen, allowedUsers = [] }) {
+export default function SongCard({ song, onOpen, allowedUsers = [], nowTick = Date.now() }) {
   const coverUrl = song.cover_url || createDefaultCoverDataUrl(song.title || 'Untitled', 'song');
   const editor = findAllowedUser(song.last_edited_by, allowedUsers);
 
@@ -24,9 +24,9 @@ export default function SongCard({ song, onOpen, allowedUsers = [] }) {
             <UserAvatar user={editor} name={song.last_edited_by || 'Onbekend'} src={editor?.avatar_url || ''} size={20} />
             {song.last_edited_by || 'Onbekend'}
           </span>
-          <span>
-            <CalendarClock size={14} />
-            {formatUpdatedAt(song.updated_at)}
+            <span>
+              <CalendarClock size={14} />
+            {formatRelativeTime(song.updated_at, nowTick)}
           </span>
         </div>
       </div>

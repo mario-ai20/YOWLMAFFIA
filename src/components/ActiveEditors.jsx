@@ -18,7 +18,7 @@ function resolveStatusLabel(status) {
   return 'offline';
 }
 
-export default function ActiveEditors({ editors = [], allowedUsers = [] }) {
+export default function ActiveEditors({ editors = [], allowedUsers = [], onOpenProfile }) {
   const safeEditors = Array.isArray(editors) ? editors.filter(Boolean) : [];
   const safeAllowedUsers = Array.isArray(allowedUsers) ? allowedUsers.filter(Boolean) : [];
   const editorMap = new Map();
@@ -65,16 +65,18 @@ export default function ActiveEditors({ editors = [], allowedUsers = [] }) {
       {visibleEditors.length ? (
         <div className="active-editors__list">
           {visibleEditors.map((editor) => (
-            <span
+            <button
               className={`active-editors__pill ${editor.status === 'typing' || editor.status === 'editing' ? 'is-typing' : ''}`}
               key={`${editor.id}-${editor.name}`}
+              type="button"
+              onClick={() => onOpenProfile?.(editor)}
             >
               <UserAvatar user={editor} name={editor.name} src={editor.avatar_url} size={32} showDot={editor.status !== 'offline'} />
               <span className="active-editors__pill-text">
                 <strong>{editor.name}</strong>
                 <span>{resolveStatusLabel(editor.status)}</span>
               </span>
-            </span>
+            </button>
           ))}
         </div>
       ) : (

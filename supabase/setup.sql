@@ -128,8 +128,21 @@ create table if not exists public.messages (
   body text not null default '',
   attachment_url text,
   attachment_type text,
+  reply_to_message_id uuid,
+  reply_to_sender text,
+  reply_to_body text,
+  reply_to_created_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.messages
+  add column if not exists reply_to_message_id uuid;
+alter table public.messages
+  add column if not exists reply_to_sender text;
+alter table public.messages
+  add column if not exists reply_to_body text;
+alter table public.messages
+  add column if not exists reply_to_created_at timestamptz;
 
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),

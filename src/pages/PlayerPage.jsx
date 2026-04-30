@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, RefreshCw, Search, Upload } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import MiniPlayer from '../components/MiniPlayer';
 import TrackBrowser from '../components/TrackBrowser';
 import { usePlayer } from '../components/PlayerProvider';
@@ -9,6 +10,7 @@ export default function PlayerPage({ tracks = [], loading = false, onUploadTrack
   const [query, setQuery] = useState('');
   const fileInputRef = useRef(null);
   const { playFromQueue, currentTrack } = usePlayer();
+  const navigate = useNavigate();
   const displayedTracks = tracks.length ? tracks : getDemoLibrary();
 
   useEffect(() => {
@@ -31,6 +33,9 @@ export default function PlayerPage({ tracks = [], loading = false, onUploadTrack
         </div>
 
         <div className="page-title__actions">
+          <button className="button button--secondary" type="button" onClick={() => navigate('/dashboard')}>
+            Dashboard
+          </button>
           <button className="button button--secondary" type="button" onClick={onRefreshTracks}>
             <RefreshCw size={16} />
             Herladen

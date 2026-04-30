@@ -19,6 +19,7 @@ export default function SongInfoPanel({
   onStatusChange,
   onClearLyrics,
   onDeleteSong,
+  onOpenProfile,
   savingState,
   activeEditors = [],
   allowedUsers = [],
@@ -76,7 +77,7 @@ export default function SongInfoPanel({
         </div>
       </div>
 
-      <ActiveEditors editors={activeEditors} allowedUsers={allowedUsers} />
+      <ActiveEditors editors={activeEditors} allowedUsers={allowedUsers} onOpenProfile={onOpenProfile} />
 
       {collabMessage ? <div className="song-info-panel__live-note">{collabMessage}</div> : null}
 

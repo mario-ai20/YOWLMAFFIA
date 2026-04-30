@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CirclePlus, ImageUp, Music4, RefreshCw } from 'lucide-react';
 import LyricsEditor from './LyricsEditor';
 import SongInfoPanel from './SongInfoPanel';
+import UserProfileDialog from './UserProfileDialog';
 import { extractThemeFromImage } from '../utils/color';
 import { applyThemeVariables, resetThemeVariables } from '../utils/theme';
 import { createDefaultCoverDataUrl } from '../utils/defaultCover';
@@ -120,6 +121,7 @@ export default function EditorPage({
   const [liveEditors, setLiveEditors] = useState(activeEditors || []);
   const [pendingInsert, setPendingInsert] = useState(null);
   const [collabMessage, setCollabMessage] = useState('');
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const textareaRef = useRef(null);
   const titleInputRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -142,6 +144,7 @@ export default function EditorPage({
     setIsDirty(false);
     setBusy(false);
     setCollabMessage('');
+    setSelectedProfile(null);
     lastRemoteSyncRef.current = Number(song?.updated_at ? new Date(song.updated_at).getTime() : Date.now()) || Date.now();
 
     async function syncTheme() {
@@ -174,6 +177,7 @@ export default function EditorPage({
     setCoverUrl(snapshot.coverUrl);
     setStatus(snapshot.status);
     lastRemoteSyncRef.current = Number(song?.updated_at ? new Date(song.updated_at).getTime() : Date.now()) || Date.now();
+    setSelectedProfile(null);
   }, [song?.updated_at, song?.title, song?.lyrics, song?.cover_url, song?.id, isDirty]);
 
   useEffect(() => {
@@ -599,6 +603,7 @@ export default function EditorPage({
             setLyrics('');
             setIsDirty(true);
           }}
+          onOpenProfile={(profileUser) => setSelectedProfile(profileUser)}
           savingState={busy ? 'Bezig...' : isDirty ? 'Wijzigingen klaar om op te slaan' : savingState}
           activeEditors={liveEditors}
           allowedUsers={allowedUsers}
@@ -660,6 +665,13 @@ export default function EditorPage({
           }}
         />
       </div>
+
+      <UserProfileDialog
+        open={Boolean(selectedProfile)}
+        user={selectedProfile}
+        onlineUsernames={liveEditors.filter((editor) => editor.status !== 'offline').map((editor) => editor.username)}
+        onClose={() => setSelectedProfile(null)}
+      />
 
       <input
         ref={coverInputRef}

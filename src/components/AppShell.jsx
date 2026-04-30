@@ -123,19 +123,19 @@ export default function AppShell({
         <BrandMark />
 
         <nav className="app-shell__nav">
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+          <NavLink end to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             <LayoutDashboard size={16} />
             Dashboard
           </NavLink>
-          <NavLink to="/player" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+          <NavLink end to="/player" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             <Music2 size={16} />
             Player
           </NavLink>
-          <NavLink to="/chat" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+          <NavLink end to="/chat" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             <MessagesSquare size={16} />
             Chat
           </NavLink>
-          <NavLink to="/songs" className="nav-link nav-link--ghost">
+          <NavLink end to="/songs" className={({ isActive }) => `nav-link nav-link--ghost ${isActive ? 'is-active' : ''}`.trim()}>
             <Library size={16} />
             Songs
           </NavLink>

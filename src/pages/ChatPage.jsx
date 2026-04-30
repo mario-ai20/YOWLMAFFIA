@@ -1,11 +1,12 @@
-import { Check, Edit3, MessageSquarePlus, Paperclip, RefreshCw, Send, Trash2, UsersRound } from 'lucide-react';
+import { Check, CornerUpLeft, Edit3, MessageSquarePlus, Paperclip, RefreshCw, Send, Trash2, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SetupNotice from '../components/SetupNotice';
 import UserAvatar from '../components/UserAvatar';
+import UserProfileDialog from '../components/UserProfileDialog';
 import { supabase } from '../utils/supabase';
 import { DEFAULT_ALLOWED_USERS, findAllowedUser, normalizeUsername } from '../utils/users';
 import { getAttachmentPreview, getChatLabel, getChatRoomKey } from '../utils/chat';
-import { formatUpdatedAt } from '../utils/dates';
+import { formatRelativeTime } from '../utils/dates';
 
 function resolvePresenceStatus(user, onlineUsernames = []) {
   const onlineSet = new Set((onlineUsernames || []).map((value) => normalizeUsername(value)));
@@ -16,6 +17,15 @@ function resolvePresenceStatus(user, onlineUsernames = []) {
   }
 
   return onlineSet.has(username) ? 'online' : 'offline';
+}
+
+function isMissingReplyColumnError(error) {
+  const message = String(error?.message || error?.details || error?.hint || '').toLowerCase();
+  return message.includes('reply_to_message_id')
+    || message.includes('reply_to_sender')
+    || message.includes('reply_to_body')
+    || message.includes('reply_to_created_at')
+    || message.includes('schema cache');
 }
 
 export default function ChatPage({
@@ -40,6 +50,10 @@ export default function ChatPage({
   const [editingMessageId, setEditingMessageId] = useState('');
   const [editingDraft, setEditingDraft] = useState('');
   const [editingBusy, setEditingBusy] = useState(false);
+  const [replyingMessageId, setReplyingMessageId] = useState('');
+  const [replyingMessage, setReplyingMessage] = useState(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const fileInputRef = useRef(null);
   const listRef = useRef(null);
 
@@ -131,6 +145,23 @@ export default function ChatPage({
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setEditingMessageId('');
+    setEditingDraft('');
+    setEditingBusy(false);
+    setReplyingMessageId('');
+    setReplyingMessage(null);
+    setSelectedProfile(null);
+  }, [roomKey]);
+
   function cancelEditMessage() {
     setEditingMessageId('');
     setEditingDraft('');
@@ -140,6 +171,29 @@ export default function ChatPage({
   function startEditMessage(message) {
     setEditingMessageId(message.id);
     setEditingDraft(message.body || '');
+    setChatError('');
+  }
+
+  function startReplyMessage(message) {
+    setReplyingMessageId(message.id);
+    setReplyingMessage({
+      id: message.id,
+      sender: message.sender || '',
+      body: message.body || '',
+      created_at: message.created_at || '',
+      attachment_url: message.attachment_url || '',
+      attachment_type: message.attachment_type || ''
+    });
+    setChatError('');
+  }
+
+  function cancelReplyMessage() {
+    setReplyingMessageId('');
+    setReplyingMessage(null);
+  }
+
+  function openProfile(user) {
+    setSelectedProfile(user);
     setChatError('');
   }
 
@@ -196,16 +250,38 @@ export default function ChatPage({
         recipient: scope === 'private' ? peerUsername : null,
         body: draft.trim() || (attachment ? attachment.name : ''),
         attachment_url: attachmentUrl,
-        attachment_type: attachmentType
+        attachment_type: attachmentType,
+        reply_to_message_id: replyingMessage?.id || null,
+        reply_to_sender: replyingMessage?.sender || null,
+        reply_to_body: replyingMessage?.body || null,
+        reply_to_created_at: replyingMessage?.created_at || null
       };
 
       const { error } = await supabase.from('messages').insert(payload);
       if (error) {
-        throw error;
+        if (!isMissingReplyColumnError(error)) {
+          throw error;
+        }
+
+        const fallbackPayload = {
+          scope,
+          room_key: roomKey,
+          sender: currentUser.username || currentUser.displayName || '',
+          recipient: scope === 'private' ? peerUsername : null,
+          body: draft.trim() || (attachment ? attachment.name : ''),
+          attachment_url: attachmentUrl,
+          attachment_type: attachmentType
+        };
+
+        const fallback = await supabase.from('messages').insert(fallbackPayload);
+        if (fallback.error) {
+          throw fallback.error;
+        }
       }
 
       setDraft('');
       setAttachment(null);
+      cancelReplyMessage();
       await reloadCurrentMessages();
     } catch (error) {
       console.error(error);
@@ -335,6 +411,7 @@ export default function ChatPage({
                   normalizeUsername(message.sender) === normalizeUsername(currentUser?.username) ||
                   normalizeUsername(message.sender) === normalizeUsername(currentUser?.displayName);
                 const isEditing = editingMessageId === message.id;
+                const isReplyTarget = replyingMessageId === message.id;
                 const attachmentPreview = getAttachmentPreview(
                   message.attachment_url,
                   message.attachment_type,
@@ -346,11 +423,28 @@ export default function ChatPage({
                   <article key={message.id} className={`chat-bubble ${isMine ? 'is-mine' : ''}`}>
                     <div className="chat-bubble__meta">
                       <div className="chat-bubble__sender">
-                        <UserAvatar user={senderUser} name={senderLabel} src={senderUser?.avatar_url || ''} size={30} />
-                        <strong>{senderLabel}</strong>
+                        <button
+                          className="chat-bubble__profile-trigger"
+                          type="button"
+                          onClick={() => senderUser && openProfile(senderUser)}
+                          disabled={!senderUser}
+                          aria-label={`Open profiel van ${senderLabel}`}
+                        >
+                          <UserAvatar user={senderUser} name={senderLabel} src={senderUser?.avatar_url || ''} size={30} />
+                          <strong>{senderLabel}</strong>
+                        </button>
                       </div>
                       <div className="chat-bubble__meta-right">
-                        <span>{formatUpdatedAt(message.created_at)}</span>
+                        <span>{formatRelativeTime(message.created_at, nowTick)}</span>
+                        <button
+                          className="icon-button icon-button--small"
+                          type="button"
+                          onClick={() => startReplyMessage(message)}
+                          disabled={editingBusy}
+                          aria-label="Reageer op bericht"
+                        >
+                          <CornerUpLeft size={14} />
+                        </button>
                         {isMine ? (
                           <div className="chat-bubble__actions">
                             <button
@@ -373,8 +467,15 @@ export default function ChatPage({
                             </button>
                           </div>
                         ) : null}
-                      </div>
                     </div>
+                  </div>
+
+                    {message.reply_to_message_id ? (
+                      <div className="chat-bubble__reply">
+                        <span>Reageert op {message.reply_to_sender || 'een bericht'}</span>
+                        <p>{message.reply_to_body || 'Oud bericht'}</p>
+                      </div>
+                    ) : null}
 
                     {isEditing ? (
                       <div className="chat-bubble__editor">
@@ -419,6 +520,8 @@ export default function ChatPage({
                         ) : null}
                       </div>
                     ) : null}
+
+                    {isReplyTarget ? <span className="chat-bubble__reply-chip">Je antwoordt hierop</span> : null}
                   </article>
                 );
               })
@@ -431,6 +534,17 @@ export default function ChatPage({
           </div>
 
           <form className="chat-page__composer" onSubmit={handleSendMessage}>
+            {replyingMessage ? (
+              <div className="chat-page__replying">
+                <div>
+                  <strong>Reageren op {replyingMessage.sender || 'bericht'}</strong>
+                  <p>{replyingMessage.body || 'Bericht zonder tekst'}</p>
+                </div>
+                <button className="button button--ghost button--small" type="button" onClick={cancelReplyMessage}>
+                  Annuleer
+                </button>
+              </div>
+            ) : null}
             <input
               className="input"
               value={draft}
@@ -464,7 +578,7 @@ export default function ChatPage({
         <aside className="panel chat-page__sidebar">
           <div className="panel__header">
             <span className="eyebrow">Team</span>
-            <h2>Wie is er online? / offline?</h2>
+            <h2>Wie is er online? en offline?</h2>
           </div>
 
           <div className="chat-page__people">
@@ -483,12 +597,7 @@ export default function ChatPage({
                       key={user.username}
                       type="button"
                       className={`chat-person ${user.username === currentUser?.username ? 'is-self' : ''}`}
-                      onClick={() => {
-                        if (user.username !== currentUser?.username) {
-                          setScope('private');
-                          setPeerUsername(user.username);
-                        }
-                      }}
+                      onClick={() => openProfile(user)}
                     >
                       <UserAvatar
                         user={user}
@@ -527,12 +636,7 @@ export default function ChatPage({
                       key={user.username}
                       type="button"
                       className={`chat-person ${user.username === currentUser?.username ? 'is-self' : ''}`}
-                      onClick={() => {
-                        if (user.username !== currentUser?.username) {
-                          setScope('private');
-                          setPeerUsername(user.username);
-                        }
-                      }}
+                      onClick={() => openProfile(user)}
                     >
                       <UserAvatar
                         user={user}
@@ -558,6 +662,18 @@ export default function ChatPage({
           </div>
         </aside>
       </div>
+
+      <UserProfileDialog
+        open={Boolean(selectedProfile)}
+        user={selectedProfile}
+        onlineUsernames={onlineUsernames}
+        onClose={() => setSelectedProfile(null)}
+        onStartPrivateMessage={(profileUser) => {
+          setScope('private');
+          setPeerUsername(profileUser.username);
+          setSelectedProfile(null);
+        }}
+      />
     </section>
   );
 }

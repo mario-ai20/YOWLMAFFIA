@@ -125,7 +125,7 @@ export default function DashboardPage({
         ) : songs.length ? (
           <div className="song-grid">
             {songs.map((song) => (
-              <SongCard key={song.id} song={song} onOpen={onOpenSong} allowedUsers={allowedUsers} />
+              <SongCard key={song.id} song={song} onOpen={onOpenSong} allowedUsers={allowedUsers} nowTick={nowTick} />
             ))}
           </div>
         ) : (
