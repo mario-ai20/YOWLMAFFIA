@@ -23,15 +23,3 @@ Geen Node.js nodig. Geen aparte setup nodig. Alleen de app installeren.
 - .yowl import en export
 - Updates vanuit de app
 
-## GitHub Releases
-
-De Windows-releases staan klaar in:
-
-- [distribution/github-release/GITHUB_RELEASES.md](C:\Users\Mattiz.Hoornaert\OneDrive - 't Saam Diksmuide\Mijn Documenten\Codex\YOWLMAFFIA\distribution\github-release\GITHUB_RELEASES.md)
-
-Daar vind je de bestanden die je op GitHub Releases kunt zetten:
-
-- `YOWLMAFFIA.exe`
-- `YOWLMAFFIA.exe.blockmap`
-
-Het team hoeft alleen de app te installeren. Daarna komen data, updates en media online binnen via de app.
