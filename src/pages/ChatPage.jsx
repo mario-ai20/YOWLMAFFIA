@@ -576,7 +576,6 @@ export default function ChatPage({
         <aside className="panel chat-page__sidebar">
           <div className="panel__header">
             <span className="eyebrow">Team</span>
-            <h2>Wie is er online? en offline?</h2>
           </div>
 
           <div className="chat-page__people">
