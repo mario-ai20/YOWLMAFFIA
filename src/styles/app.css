@@ -1186,23 +1186,6 @@ a {
   margin-top: 0.2rem;
 }
 
-.player-page__routes {
-  padding: 0.9rem 1rem;
-  display: grid;
-  gap: 0.7rem;
-  position: sticky;
-  top: 0.9rem;
-  z-index: 8;
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(18px);
-}
-
-.player-page__routes-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
 .app-shell__version {
   justify-self: end;
   font-size: 0.78rem;
@@ -2261,8 +2244,7 @@ a {
 .chat-bubble__profile-trigger,
 .active-editors__pill,
 .chat-person,
-.dashboard-feed__item,
-.player-page__routes .button {
+.dashboard-feed__item {
   -webkit-tap-highlight-color: transparent;
 }
 
