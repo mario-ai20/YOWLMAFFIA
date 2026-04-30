@@ -57,6 +57,23 @@ function maskEmail(email = '') {
   return `${maskedLocal}@${maskedHost}${rest.length ? `.${rest.join('.')}` : ''}`;
 }
 
+function isValidEmailAddress(value = '') {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function getAuthRedirectUrl(pathname = '/login') {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const { protocol, origin } = window.location;
+  if (!/^https?:$/i.test(protocol) || !origin || origin === 'null') {
+    return undefined;
+  }
+
+  return `${origin}${pathname}`;
+}
+
 function getStoragePathFromPublicUrl(publicUrl = '') {
   const url = String(publicUrl || '').trim();
   if (!url) {
@@ -132,6 +149,7 @@ function ProtectedLayout({
   onProfileSave,
   onAvatarUpload,
   onAvatarDelete,
+  onEmailChange,
   onPublishUpdate
 }) {
   if (!currentUser) {
@@ -146,6 +164,7 @@ function ProtectedLayout({
       onProfileSave={onProfileSave}
       onAvatarUpload={onAvatarUpload}
       onAvatarDelete={onAvatarDelete}
+      onEmailChange={onEmailChange}
       onPublishUpdate={onPublishUpdate}
     >
       <Outlet />
@@ -263,6 +282,8 @@ function LoginRoute({
   onLogin,
   onVerifyCode,
   onResendCode,
+  onForgotPassword,
+  onRecoverPassword,
   onBack,
   stage,
   codeTarget,
@@ -270,6 +291,7 @@ function LoginRoute({
   hint,
   loading,
   error,
+  forgotPasswordEnabled,
   showSetupNotice
 }) {
   if (currentUser) {
@@ -279,18 +301,21 @@ function LoginRoute({
   return (
     <>
       {showSetupNotice ? <SetupNotice /> : null}
-      <LoginPage
-        stage={stage}
-        codeTarget={codeTarget}
-        identityLabel={identityLabel}
-        hint={hint}
-        onLogin={onLogin}
-        onVerifyCode={onVerifyCode}
-        onResendCode={onResendCode}
-        onBack={onBack}
-        loading={loading}
-        error={error}
-      />
+        <LoginPage
+          stage={stage}
+          codeTarget={codeTarget}
+          identityLabel={identityLabel}
+          hint={hint}
+          onLogin={onLogin}
+          onVerifyCode={onVerifyCode}
+          onResendCode={onResendCode}
+          onRequestPasswordReset={onForgotPassword}
+          onRecoverPassword={onRecoverPassword}
+          onBack={onBack}
+          forgotPasswordEnabled={forgotPasswordEnabled}
+          loading={loading}
+          error={error}
+        />
     </>
   );
 }
@@ -306,6 +331,7 @@ export default function App() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginIdentity, setLoginIdentity] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
+  const [loginFailedAttempts, setLoginFailedAttempts] = useState(0);
   const [allowedUsers, setAllowedUsers] = useState(DEFAULT_ALLOWED_USERS);
   const [songs, setSongs] = useState([]);
   const [songsLoading, setSongsLoading] = useState(true);
@@ -514,13 +540,27 @@ export default function App() {
     if (supabase) {
       const {
         data: { subscription }
-      } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      } = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (loginFlowBypassRef.current) {
           return;
         }
 
         setSession(nextSession || null);
         setCurrentUser(resolveUserFromSession(nextSession, allowedUsers));
+
+        if (event === 'PASSWORD_RECOVERY') {
+          setLoginStage('recovery');
+          setLoginEmail(nextSession?.user?.email || '');
+          setLoginIdentity(
+            nextSession?.user?.user_metadata?.display_name
+              || nextSession?.user?.user_metadata?.displayName
+              || nextSession?.user?.user_metadata?.name
+              || nextSession?.user?.email
+              || ''
+          );
+          setLoginHint('Kies een nieuw wachtwoord om weer toegang te krijgen.');
+          setAuthError('');
+        }
       });
 
       return () => {
@@ -798,6 +838,7 @@ export default function App() {
         return;
       }
 
+      setLoginFailedAttempts(0);
       setCurrentUser(user);
       setSession({ user: { email: user.email, id: `local-${user.username}` } });
       resetLoginFlow();
@@ -817,6 +858,7 @@ export default function App() {
       if (passwordError) {
         const normalizedMessage = String(passwordError.message || '').toLowerCase();
         if (normalizedMessage.includes('invalid login credentials')) {
+          setLoginFailedAttempts((count) => count + 1);
           setAuthError('Onjuiste username, e-mail of wachtwoord. Controleer het juiste YOWLMAFFIA-account en probeer opnieuw.');
         } else {
           setAuthError(passwordError.message || 'Inloggen mislukt.');
@@ -824,6 +866,7 @@ export default function App() {
         return;
       }
 
+      setLoginFailedAttempts(0);
       await supabase.auth.signOut();
 
       const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -888,6 +931,7 @@ export default function App() {
 
       setSession(data.session || null);
       setCurrentUser(resolvedUser);
+      setLoginFailedAttempts(0);
       resetLoginFlow();
       navigate('/dashboard');
     } finally {
@@ -929,6 +973,81 @@ export default function App() {
     }
   }
 
+  async function handleForgotPassword({ email } = {}) {
+    const nextEmail = String(email || '').trim();
+
+    if (!isValidEmailAddress(nextEmail)) {
+      throw new Error('Vul een geldig e-mailadres in.');
+    }
+
+    let user = findAllowedUser(nextEmail, allowedUsers);
+    if (!user || !user.email) {
+      const freshUsers = await loadAllowedUsers();
+      setAllowedUsers(freshUsers);
+      user = findAllowedUser(nextEmail, freshUsers);
+    }
+
+    if (!user || !user.email) {
+      throw new Error('Dit e-mailadres hoort niet bij een YOWLMAFFIA-account.');
+    }
+
+    if (!supabase) {
+      throw new Error('Supabase is niet gekoppeld.');
+    }
+
+    const redirectTo = getAuthRedirectUrl('/login');
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, redirectTo ? { redirectTo } : undefined);
+
+    if (error) {
+      throw new Error(error.message || 'We konden de resetmail niet sturen.');
+    }
+
+    return {
+      message: `Resetmail verstuurd naar ${maskEmail(user.email)}.`
+    };
+  }
+
+  async function handleRecoverPassword({ password, confirmPassword } = {}) {
+    const nextPassword = String(password || '');
+    const nextConfirmPassword = String(confirmPassword || '');
+
+    if (!supabase) {
+      throw new Error('Supabase is niet gekoppeld.');
+    }
+
+    if (!nextPassword.trim()) {
+      throw new Error('Vul een nieuw wachtwoord in.');
+    }
+
+    if (nextPassword.length < 6) {
+      throw new Error('Kies een wachtwoord van minstens 6 tekens.');
+    }
+
+    if (nextPassword !== nextConfirmPassword) {
+      throw new Error('De wachtwoorden komen niet overeen.');
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: nextPassword });
+    if (error) {
+      throw new Error(error.message || 'Wachtwoord wijzigen mislukt.');
+    }
+
+    await supabase.auth.signOut();
+    setSession(null);
+    setCurrentUser(null);
+    setLoginEmail('');
+    setLoginIdentity('');
+    setLoginHint('Wachtwoord aangepast. Log opnieuw in met je nieuwe wachtwoord.');
+    setAuthError('');
+    setLoginStage('credentials');
+    setLoginFailedAttempts(0);
+    navigate('/login');
+
+    return {
+      message: 'Wachtwoord aangepast. Log opnieuw in met je nieuwe wachtwoord.'
+    };
+  }
+
   function handleBackToCredentials() {
     resetLoginFlow();
   }
@@ -940,6 +1059,7 @@ export default function App() {
 
     setSession(null);
     setCurrentUser(null);
+    setLoginFailedAttempts(0);
     resetLoginFlow();
     navigate('/login');
   }
@@ -1125,6 +1245,88 @@ export default function App() {
     }
 
     return { deleted: true };
+  }
+
+  async function handleChangeEmail({ email } = {}) {
+    if (!currentUser) {
+      throw new Error('Je moet eerst ingelogd zijn.');
+    }
+
+    const nextEmail = String(email || '').trim().toLowerCase();
+    if (!isValidEmailAddress(nextEmail)) {
+      throw new Error('Vul een geldig e-mailadres in.');
+    }
+
+    const existing = allowedUsers.find((user) => normalizeUsername(user.email) === normalizeUsername(nextEmail));
+    if (existing && normalizeUsername(existing.username) !== normalizeUsername(currentUser.username)) {
+      throw new Error('Dit e-mailadres is al gekoppeld aan een ander account.');
+    }
+
+    if (!supabase) {
+      throw new Error('Supabase is niet gekoppeld.');
+    }
+
+    const { error } = await supabase.auth.updateUser({ email: nextEmail });
+    if (error) {
+      throw new Error(error.message || 'E-mailadres wijzigen mislukt.');
+    }
+
+    const nextProfile = {
+      email: nextEmail,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error: updateError } = await supabase
+      .from('allowed_users')
+      .update(nextProfile)
+      .eq('username', currentUser.username)
+      .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message')
+      .maybeSingle();
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    const nextCurrentUser = data
+      ? {
+          ...currentUser,
+          email: data.email || nextEmail,
+          updated_at: data.updated_at || nextProfile.updated_at
+        }
+      : {
+          ...currentUser,
+          email: nextEmail,
+          updated_at: nextProfile.updated_at
+        };
+
+    setAllowedUsers((previous) =>
+      previous.map((user) =>
+        normalizeUsername(user.username) === normalizeUsername(currentUser.username)
+          ? {
+              ...user,
+              email: nextEmail,
+              updated_at: nextProfile.updated_at
+            }
+          : user
+      )
+    );
+    setCurrentUser(nextCurrentUser);
+    setSession((previous) =>
+      previous
+        ? {
+            ...previous,
+            user: {
+              ...previous.user,
+              email: nextEmail
+            }
+          }
+        : previous
+    );
+    cacheAllowedUserProfile(nextCurrentUser);
+
+    return {
+      message: `Bevestigingsmail verstuurd naar ${maskEmail(nextEmail)}.`
+    };
   }
 
   async function handleCreateSong({ title, lyrics } = {}) {
@@ -1559,22 +1761,25 @@ export default function App() {
         <Route
           path="/login"
           element={
-            <LoginRoute
-              currentUser={activeUser}
-              onLogin={handleLogin}
-              onVerifyCode={handleVerifyLoginCode}
-              onResendCode={handleResendLoginCode}
-              onBack={handleBackToCredentials}
-              stage={loginStage}
-              codeTarget={loginEmail}
-              identityLabel={loginIdentity}
-              hint={loginHint}
-              loading={authLoading || loginBusy}
-              error={authError}
-              showSetupNotice={!isSupabaseConfigured}
-            />
-          }
-        />
+              <LoginRoute
+                currentUser={activeUser}
+                onLogin={handleLogin}
+                onVerifyCode={handleVerifyLoginCode}
+                onResendCode={handleResendLoginCode}
+                onForgotPassword={handleForgotPassword}
+                onRecoverPassword={handleRecoverPassword}
+                onBack={handleBackToCredentials}
+                stage={loginStage}
+                codeTarget={loginEmail}
+                identityLabel={loginIdentity}
+                hint={loginHint}
+                loading={authLoading || loginBusy}
+                error={authError}
+                forgotPasswordEnabled={loginFailedAttempts >= 3}
+                showSetupNotice={!isSupabaseConfigured}
+              />
+            }
+          />
         <Route
           element={
             <ProtectedLayout
@@ -1584,6 +1789,7 @@ export default function App() {
               onProfileSave={handleSaveProfile}
               onAvatarUpload={handleUploadProfileAvatar}
               onAvatarDelete={handleDeleteProfileAvatar}
+              onEmailChange={handleChangeEmail}
               onPublishUpdate={handlePublishUpdate}
             />
           }

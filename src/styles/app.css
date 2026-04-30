@@ -494,6 +494,36 @@ a {
   flex: 1 1 180px;
 }
 
+.login-reset {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.login-reset__toggle {
+  justify-content: center;
+}
+
+.login-reset__form {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.login-reset__text {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.login-reset__actions {
+  margin-top: 0.1rem;
+}
+
 .form-error {
   display: flex;
   align-items: center;
@@ -927,6 +957,43 @@ a {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.2rem;
+}
+
+.settings-menu__email-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.settings-menu__email-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.settings-menu__email-copy strong {
+  font-size: 0.95rem;
+}
+
+.settings-menu__email-copy span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.settings-menu__email-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-menu__email-actions {
+  margin-top: -0.1rem;
 }
 
 .settings-menu__label {

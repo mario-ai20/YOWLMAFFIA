@@ -30,6 +30,7 @@ export default function AppShell({
   onProfileSave,
   onAvatarUpload,
   onAvatarDelete,
+  onEmailChange,
   onPublishUpdate,
   children
 }) {
@@ -163,6 +164,7 @@ export default function AppShell({
             onProfileSave={onProfileSave}
             onAvatarUpload={onAvatarUpload}
             onAvatarDelete={onAvatarDelete}
+            onEmailChange={onEmailChange}
             onPublishUpdate={onPublishUpdate}
           />
 

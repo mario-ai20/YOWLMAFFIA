@@ -1,6 +1,7 @@
 import {
   Check,
   CloudDownload,
+  Mail,
   MonitorSmartphone,
   MoonStar,
   PencilLine,
@@ -44,6 +45,7 @@ export default function SettingsMenu({
   onProfileSave,
   onAvatarUpload,
   onAvatarDelete,
+  onEmailChange,
   onPublishUpdate
 }) {
   const [open, setOpen] = useState(false);
@@ -55,6 +57,10 @@ export default function SettingsMenu({
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '');
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
+  const [emailDraft, setEmailDraft] = useState(user?.email || '');
+  const [emailEditOpen, setEmailEditOpen] = useState(false);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMessage, setEmailMessage] = useState('');
   const [updateState, setUpdateState] = useState(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
@@ -79,8 +85,15 @@ export default function SettingsMenu({
     setStatusMessage(user?.status_message || '');
     setAvatarUrl(user?.avatar_url || '');
     setAvatarPreview(user?.avatar_url || '');
+    setEmailDraft(user?.email || '');
     setAvatarFile(null);
   }, [user?.bio, user?.status_message, user?.avatar_url, user?.username]);
+
+  useEffect(() => {
+    if (!emailEditOpen) {
+      setEmailMessage('');
+    }
+  }, [emailEditOpen]);
 
   useEffect(() => {
     if (!avatarFile) {
@@ -197,6 +210,34 @@ export default function SettingsMenu({
       );
     } finally {
       setProfileBusy(false);
+    }
+  }
+
+  async function handleChangeEmail(event) {
+    event.preventDefault();
+
+    if (!onEmailChange) {
+      return;
+    }
+
+    setEmailBusy(true);
+    setEmailMessage('');
+
+    try {
+      const result = await onEmailChange({
+        email: emailDraft
+      });
+
+      setEmailMessage(result?.message || 'Bevestigingsmail verstuurd.');
+      setEmailEditOpen(false);
+    } catch (error) {
+      setEmailMessage(
+        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
+          ? String(error.message || error.error_description)
+          : 'E-mailadres wijzigen mislukt.'
+      );
+    } finally {
+      setEmailBusy(false);
     }
   }
 
@@ -407,6 +448,53 @@ export default function SettingsMenu({
                     />
                   </div>
 
+                  <div className="settings-menu__email-box">
+                    <div className="settings-menu__email-copy">
+                      <strong>E-mailadres</strong>
+                      <span>{user?.email || 'Geen e-mail gekoppeld'}</span>
+                    </div>
+                    <button
+                      className="button button--secondary"
+                      type="button"
+                      onClick={() => setEmailEditOpen((value) => !value)}
+                    >
+                      <Mail size={16} />
+                      Wijzig e-mailadres
+                    </button>
+                  </div>
+
+                  {emailEditOpen ? (
+                    <form className="settings-menu__email-form" onSubmit={handleChangeEmail}>
+                      <label className="field settings-menu__field">
+                        <span>Nieuw e-mailadres</span>
+                        <input
+                          className="input"
+                          type="email"
+                          value={emailDraft}
+                          onChange={(event) => setEmailDraft(event.target.value)}
+                          placeholder="jouw@nieuwadres.be"
+                          autoComplete="email"
+                          required
+                        />
+                      </label>
+
+                      <div className="login-form__actions settings-menu__email-actions">
+                        <button
+                          className="button button--ghost"
+                          type="button"
+                          disabled={emailBusy}
+                          onClick={() => setEmailEditOpen(false)}
+                        >
+                          Terug
+                        </button>
+
+                        <button className="button button--primary" type="submit" disabled={emailBusy}>
+                          {emailBusy ? 'Versturen...' : 'Stuur bevestiging'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : null}
+
                   <label className="field settings-menu__field">
                     <span>Bio</span>
                     <textarea
@@ -433,6 +521,7 @@ export default function SettingsMenu({
                   </button>
 
                   {profileMessage ? <p className="settings-menu__message">{profileMessage}</p> : null}
+                  {emailMessage ? <p className="settings-menu__message">{emailMessage}</p> : null}
                 </div>
 
                 <div className="settings-menu__group">
