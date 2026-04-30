@@ -10,7 +10,7 @@ import { formatRelativeTime } from '../utils/dates';
 import { normalizeUsername } from '../utils/users';
 import { getDemoLibrary } from '../utils/demoMedia';
 
-function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick }) {
+function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick, showTimestamp = true }) {
   return (
     <button className={`dashboard-feed__item ${unread ? 'is-unread' : ''}`} type="button" onClick={onClick}>
       <div className="dashboard-feed__item-icon">
@@ -23,7 +23,7 @@ function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick 
       <div className="dashboard-feed__item-copy">
         <strong>{item.title}</strong>
         <span>{item.body}</span>
-        <small>{formatRelativeTime(item.timestamp, nowTick)}</small>
+        {showTimestamp ? <small>{formatRelativeTime(item.timestamp, nowTick)}</small> : null}
       </div>
       {unread ? <CheckCheck size={16} /> : null}
     </button>
@@ -83,6 +83,7 @@ export default function DashboardPage({
   onOpenSong,
   onRefreshSongs,
   onOpenNotification,
+  onClearNotifications,
   onSendAnnouncement,
   onUploadTrack,
   onRefreshTracks
@@ -339,6 +340,12 @@ export default function DashboardPage({
                 <Bell size={16} />
                 Jouw meldingen
               </h2>
+
+              {unreadNotifications.length && typeof onClearNotifications === 'function' ? (
+                <button className="button button--ghost button--small" type="button" onClick={onClearNotifications}>
+                  Alles wissen
+                </button>
+              ) : null}
             </div>
 
             {notificationsLoading ? (
@@ -355,6 +362,7 @@ export default function DashboardPage({
                     unread
                     icon={Bell}
                     nowTick={nowTick}
+                    showTimestamp={false}
                     onClick={() => onOpenNotification?.(notification)}
                   />
                 ))}

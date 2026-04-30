@@ -1516,6 +1516,26 @@ export default function App() {
     loadNotifications();
   }
 
+  async function handleClearAllNotifications() {
+    if (!supabase || !currentUser) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: now })
+      .eq('recipient_email', currentUser.email)
+      .eq('is_read', false);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    await loadNotifications();
+  }
+
   async function handleOpenNotification(notification) {
     if (!notification) {
       return;
@@ -1816,6 +1836,7 @@ export default function App() {
                 onOpenSong={(song) => navigate(`/editor/${song.id}`)}
                 onRefreshSongs={loadSongs}
                 onOpenNotification={handleOpenNotification}
+                onClearNotifications={handleClearAllNotifications}
                 onSendAnnouncement={handleSendAnnouncement}
                 onUploadTrack={handleUploadTrack}
                 onRefreshTracks={loadTracks}
@@ -1841,6 +1862,7 @@ export default function App() {
                 onOpenSong={(song) => navigate(`/editor/${song.id}`)}
                 onRefreshSongs={loadSongs}
                 onOpenNotification={handleOpenNotification}
+                onClearNotifications={handleClearAllNotifications}
                 onSendAnnouncement={handleSendAnnouncement}
                 onUploadTrack={handleUploadTrack}
                 onRefreshTracks={loadTracks}
