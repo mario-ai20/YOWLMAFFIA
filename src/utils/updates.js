@@ -55,19 +55,6 @@ function setUpdateState(patch) {
   return updateState;
 }
 
-async function getSignedInSession() {
-  if (!supabase?.auth?.getSession) {
-    return null;
-  }
-
-  try {
-    const { data } = await supabase.auth.getSession();
-    return data?.session || null;
-  } catch (error) {
-    return null;
-  }
-}
-
 async function ensureReleaseSubscription() {
   if (!supabase || releaseSubscription || updateReleaseTableMissing) {
     return;
@@ -142,22 +129,6 @@ async function refreshLatestRelease() {
     return setUpdateState({
       status: 'disabled',
       message: 'Supabase is nog niet geconfigureerd.'
-    });
-  }
-
-  const session = await getSignedInSession();
-  if (!session) {
-    return setUpdateState({
-      status: 'idle',
-      currentVersion: await getAppVersion(),
-      latestVersion: await getAppVersion(),
-      downloadUrl: '',
-      filePath: '',
-      progress: 0,
-      notes: '',
-      publishedAt: '',
-      isRequired: false,
-      message: ''
     });
   }
 

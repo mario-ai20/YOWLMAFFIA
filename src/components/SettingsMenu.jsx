@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate, subscribeToUpdateState } from '../utils/updates';
 import { normalizeUsername } from '../utils/users';
+import UpdateNoticeCard from './UpdateNoticeCard';
 import UserAvatar from './UserAvatar';
 
 const THEME_OPTIONS = [
@@ -526,6 +527,7 @@ export default function SettingsMenu({
 
                 <div className="settings-menu__group">
                   <span className="settings-menu__label">Updates</span>
+                  <UpdateNoticeCard compact showActions={false} className="settings-menu__update" />
                   <button className="button button--secondary button--full" type="button" onClick={handleCheckUpdates} disabled={updateBusy}>
                     <RefreshCw size={16} />
                     Controleer updates

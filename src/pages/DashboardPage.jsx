@@ -2,6 +2,7 @@ import { Bell, CheckCheck, Clock3, Plus, RefreshCw, Sparkles } from 'lucide-reac
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Music2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import SongCard from '../components/SongCard';
+import UpdateNoticeCard from '../components/UpdateNoticeCard';
 import TrackBrowser from '../components/TrackBrowser';
 import { usePlayer } from '../components/PlayerProvider';
 import UserAvatar from '../components/UserAvatar';
@@ -199,6 +200,8 @@ export default function DashboardPage({
 
       {!isSongsPage ? (
         <aside className="dashboard-page__sidebar">
+          <UpdateNoticeCard compact className="dashboard-update" />
+
           <section className="panel dashboard-music">
             <div className="panel__header">
               <span className="eyebrow">Muziek</span>

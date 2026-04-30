@@ -171,6 +171,7 @@ create table if not exists public.app_update_releases (
   created_at timestamptz not null default now()
 );
 
+grant select on table public.app_update_releases to anon;
 grant select on table public.app_update_releases to authenticated;
 grant insert, update, delete on table public.app_update_releases to authenticated;
 
@@ -278,12 +279,12 @@ create policy "Mattiz can insert notifications"
     and lower(public.current_allowed_username()) = 'mattiz'
   );
 
-drop policy if exists "Authenticated users can read app update releases" on public.app_update_releases;
-create policy "Authenticated users can read app update releases"
+drop policy if exists "Anyone can read app update releases" on public.app_update_releases;
+create policy "Anyone can read app update releases"
   on public.app_update_releases
   for select
-  to authenticated
-  using (public.is_allowed_yowl_user());
+  to public
+  using (true);
 
 drop policy if exists "Mattiz can publish app update releases" on public.app_update_releases;
 create policy "Mattiz can publish app update releases"

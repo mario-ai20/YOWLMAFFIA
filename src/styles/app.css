@@ -551,6 +551,15 @@ a {
   padding: 1rem 1.1rem;
 }
 
+.update-banner--compact {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 0.95rem 1rem;
+}
+
 .update-banner__header {
   align-items: center;
 }
@@ -585,6 +594,10 @@ a {
   flex-wrap: wrap;
   gap: 0.65rem;
   align-items: center;
+}
+
+.update-banner--compact .update-banner__actions {
+  justify-content: flex-start;
 }
 
 .update-banner__progress {

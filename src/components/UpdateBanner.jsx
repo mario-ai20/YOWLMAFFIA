@@ -2,13 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw, Rocket, Upload } from 'lucide-react';
 import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate, subscribeToUpdateState } from '../utils/updates';
 
-const visibleStatuses = new Set(['available', 'downloading', 'ready', 'installing']);
+const visibleStatuses = new Set(['available', 'downloading', 'ready', 'installing', 'error']);
 
 function formatVersion(version) {
   return version ? `v${version}` : '';
 }
 
-export default function UpdateBanner() {
+export default function UpdateBanner({
+  className = '',
+  compact = false,
+  showActions = true,
+  eyebrow = 'Nieuwe update'
+} = {}) {
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -55,7 +60,7 @@ export default function UpdateBanner() {
       return 'Update mislukt';
     }
 
-    return 'Update beschikbaar';
+    return 'Nieuwe update beschikbaar';
   }, [status]);
 
   async function handleCheck() {
@@ -90,10 +95,10 @@ export default function UpdateBanner() {
   }
 
   return (
-    <aside className="update-banner panel" aria-live="polite">
+    <aside className={`update-banner panel ${compact ? 'update-banner--compact' : ''} ${className}`.trim()} aria-live="polite">
       <div className="panel__header update-banner__header">
         <div>
-          <span className="eyebrow">System update</span>
+          <span className="eyebrow">{eyebrow}</span>
           <h2>{title}</h2>
         </div>
         <Rocket size={18} />
@@ -110,28 +115,30 @@ export default function UpdateBanner() {
         <span>Nieuw: {formatVersion(state?.latestVersion)}</span>
       </div>
 
-      <div className="update-banner__actions">
-        <button className="button button--secondary" type="button" onClick={handleCheck} disabled={busy || status === 'installing'}>
-          <RefreshCw size={16} />
-          Controleren
-        </button>
-
-        {status === 'available' ? (
-          <button className="button button--primary" type="button" onClick={handleDownload} disabled={busy}>
-            <Download size={16} />
-            Downloaden
+      {showActions ? (
+        <div className="update-banner__actions">
+          <button className="button button--secondary" type="button" onClick={handleCheck} disabled={busy || status === 'installing'}>
+            <RefreshCw size={16} />
+            Controleren
           </button>
-        ) : null}
 
-        {status === 'ready' ? (
-          <button className="button button--primary" type="button" onClick={handleInstall} disabled={busy}>
-            <Upload size={16} />
-            Nu bijwerken
-          </button>
-        ) : null}
+          {status === 'available' ? (
+            <button className="button button--primary" type="button" onClick={handleDownload} disabled={busy}>
+              <Download size={16} />
+              Downloaden
+            </button>
+          ) : null}
 
-        {status === 'downloading' ? <div className="update-banner__progress">Downloaden...</div> : null}
-      </div>
+          {status === 'ready' ? (
+            <button className="button button--primary" type="button" onClick={handleInstall} disabled={busy}>
+              <Upload size={16} />
+              Nu bijwerken
+            </button>
+          ) : null}
+
+          {status === 'downloading' ? <div className="update-banner__progress">Downloaden...</div> : null}
+        </div>
+      ) : null}
     </aside>
   );
 }

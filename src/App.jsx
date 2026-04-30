@@ -6,7 +6,6 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ChatPage from './pages/ChatPage';
 import SetupNotice from './components/SetupNotice';
-import UpdateBanner from './components/UpdateBanner';
 import CreateSongDialog from './components/CreateSongDialog';
 import { PlayerProvider } from './components/PlayerProvider';
 import { supabase, supabaseUrl, supabaseAnonKey, isSupabaseConfigured } from './utils/supabase';
@@ -1779,7 +1778,6 @@ export default function App() {
 
   return (
     <PlayerProvider>
-      <UpdateBanner />
       <Routes>
         <Route
           path="/login"

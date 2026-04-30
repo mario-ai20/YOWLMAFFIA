@@ -1,6 +1,7 @@
 import { ArrowLeft, KeyRound, LockKeyhole, LogIn, MailCheck, RefreshCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import BrandMark from '../components/BrandMark';
+import UpdateNoticeCard from '../components/UpdateNoticeCard';
 
 export default function LoginPage({
   stage = 'credentials',
@@ -159,6 +160,8 @@ export default function LoginPage({
             </p>
           </div>
 
+          <UpdateNoticeCard compact className="login-page__update" />
+
           {!isOtpStage && !isRecoveryStage ? (
             <>
               <label className="field">
@@ -311,7 +314,7 @@ export default function LoginPage({
             {forgotOpen ? (
               <form className="login-reset__form" onSubmit={handleForgotPasswordSubmit}>
                 <p className="login-reset__text">
-                  Vul je e-mailadres in. We sturen een resetlink naar het juiste YOWLMAFFIA-account.
+                  Vul je e-mailadres in. We sturen een resetmail naar het juiste YOWLMAFFIA-account.
                 </p>
 
                 <label className="field">
