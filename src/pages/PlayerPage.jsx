@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, RefreshCw, Search, Upload } from 'lucide-react';
+import { ArrowUpRight, RefreshCw, Search, Upload, LayoutDashboard, MessagesSquare, Library } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MiniPlayer from '../components/MiniPlayer';
 import TrackBrowser from '../components/TrackBrowser';
@@ -57,6 +57,24 @@ export default function PlayerPage({ tracks = [], loading = false, onUploadTrack
               }
             }}
           />
+        </div>
+      </div>
+
+      <div className="player-page__routes panel">
+        <span className="eyebrow">Snelle navigatie</span>
+        <div className="player-page__routes-row">
+          <button className="button button--secondary button--small" type="button" onClick={() => navigate('/dashboard')}>
+            <LayoutDashboard size={16} />
+            Dashboard
+          </button>
+          <button className="button button--secondary button--small" type="button" onClick={() => navigate('/chat')}>
+            <MessagesSquare size={16} />
+            Chat
+          </button>
+          <button className="button button--secondary button--small" type="button" onClick={() => navigate('/songs')}>
+            <Library size={16} />
+            Songs
+          </button>
         </div>
       </div>
 

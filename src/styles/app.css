@@ -1186,6 +1186,18 @@ a {
   margin-top: 0.2rem;
 }
 
+.player-page__routes {
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.player-page__routes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .app-shell__version {
   justify-self: end;
   font-size: 0.78rem;
@@ -2238,6 +2250,14 @@ a {
   margin: 0.15rem 0 0;
   color: var(--muted);
   line-height: 1.5;
+}
+
+.chat-bubble__profile-trigger,
+.active-editors__pill,
+.chat-person,
+.dashboard-feed__item,
+.player-page__routes .button {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .icon-button--small {
