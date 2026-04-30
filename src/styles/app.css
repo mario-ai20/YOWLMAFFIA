@@ -2205,11 +2205,12 @@ a {
 }
 
 .chat-bubble__reply {
-  margin-top: 0.65rem;
+  margin: 0 0 0.7rem;
   padding: 0.7rem 0.8rem;
   border-radius: 14px;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .chat-bubble__reply span {

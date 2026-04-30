@@ -421,6 +421,13 @@ export default function ChatPage({
 
                 return (
                   <article key={message.id} className={`chat-bubble ${isMine ? 'is-mine' : ''}`}>
+                    {message.reply_to_message_id ? (
+                      <div className="chat-bubble__reply">
+                        <span>Reageert op {message.reply_to_sender || 'een bericht'}</span>
+                        <p>{message.reply_to_body || 'Oud bericht'}</p>
+                      </div>
+                    ) : null}
+
                     <div className="chat-bubble__meta">
                       <div className="chat-bubble__sender">
                         <button
@@ -467,15 +474,8 @@ export default function ChatPage({
                             </button>
                           </div>
                         ) : null}
-                    </div>
-                  </div>
-
-                    {message.reply_to_message_id ? (
-                      <div className="chat-bubble__reply">
-                        <span>Reageert op {message.reply_to_sender || 'een bericht'}</span>
-                        <p>{message.reply_to_body || 'Oud bericht'}</p>
                       </div>
-                    ) : null}
+                    </div>
 
                     {isEditing ? (
                       <div className="chat-bubble__editor">
@@ -520,8 +520,6 @@ export default function ChatPage({
                         ) : null}
                       </div>
                     ) : null}
-
-                    {isReplyTarget ? <span className="chat-bubble__reply-chip">Je antwoordt hierop</span> : null}
                   </article>
                 );
               })
