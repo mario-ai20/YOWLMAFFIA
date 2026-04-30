@@ -1190,6 +1190,11 @@ a {
   padding: 0.9rem 1rem;
   display: grid;
   gap: 0.7rem;
+  position: sticky;
+  top: 0.9rem;
+  z-index: 8;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px);
 }
 
 .player-page__routes-row {

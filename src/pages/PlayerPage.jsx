@@ -63,9 +63,9 @@ export default function PlayerPage({ tracks = [], loading = false, onUploadTrack
       <div className="player-page__routes panel">
         <span className="eyebrow">Snelle navigatie</span>
         <div className="player-page__routes-row">
-          <button className="button button--secondary button--small" type="button" onClick={() => navigate('/dashboard')}>
+          <button className="button button--primary button--small" type="button" onClick={() => navigate('/dashboard')}>
             <LayoutDashboard size={16} />
-            Dashboard
+            Terug naar dashboard
           </button>
           <button className="button button--secondary button--small" type="button" onClick={() => navigate('/chat')}>
             <MessagesSquare size={16} />
