@@ -56,6 +56,111 @@ function setUpdateState(patch) {
   sendUpdateState();
 }
 
+function isGithubHost(hostname = '') {
+  const lower = String(hostname || '').toLowerCase();
+  return lower === 'github.com' || lower === 'www.github.com' || lower === 'api.github.com';
+}
+
+function isDirectDownloadUrl(url) {
+  return /\.(exe|msi|zip|dmg|pkg)(\?|#|$)/i.test(String(url || ''));
+}
+
+function extractGithubReleaseInfo(inputUrl) {
+  const parsed = new URL(inputUrl);
+  const pathParts = parsed.pathname.split('/').filter(Boolean);
+
+  if (parsed.hostname === 'api.github.com') {
+    if (pathParts[0] === 'repos' && pathParts[3] === 'releases') {
+      const owner = pathParts[1];
+      const repo = pathParts[2];
+      const kind = pathParts[4];
+      const value = pathParts.slice(5).join('/');
+      if (owner && repo && (kind === 'latest' || (kind === 'tags' && value))) {
+        return { owner, repo, tag: kind === 'tags' ? value : 'latest' };
+      }
+    }
+    return null;
+  }
+
+  if (!isGithubHost(parsed.hostname)) {
+    return null;
+  }
+
+  if (pathParts.length < 4 || pathParts[2] !== 'releases') {
+    return null;
+  }
+
+  const owner = pathParts[0];
+  const repo = pathParts[1];
+  const kind = pathParts[3];
+  const value = pathParts.slice(4).join('/');
+
+  if (!owner || !repo) {
+    return null;
+  }
+
+  if (kind === 'latest') {
+    return { owner, repo, tag: 'latest' };
+  }
+
+  if (kind === 'tag' && value) {
+    return { owner, repo, tag: value };
+  }
+
+  return null;
+}
+
+function pickGithubReleaseAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  if (!assets.length) {
+    return '';
+  }
+
+  const preferredAsset =
+    assets.find((asset) => /\.exe$/i.test(String(asset?.name || '')) && /yowlmaffia/i.test(String(asset?.name || ''))) ||
+    assets.find((asset) => /\.exe$/i.test(String(asset?.name || ''))) ||
+    assets.find((asset) => String(asset?.browser_download_url || '').trim());
+
+  return String(preferredAsset?.browser_download_url || '').trim();
+}
+
+async function resolveGithubReleaseDownloadUrl(downloadUrl) {
+  const trimmed = String(downloadUrl || '').trim();
+  if (!trimmed || isDirectDownloadUrl(trimmed)) {
+    return trimmed;
+  }
+
+  const releaseInfo = extractGithubReleaseInfo(trimmed);
+  if (!releaseInfo) {
+    return trimmed;
+  }
+
+  const apiUrl =
+    releaseInfo.tag === 'latest'
+      ? `https://api.github.com/repos/${releaseInfo.owner}/${releaseInfo.repo}/releases/latest`
+      : `https://api.github.com/repos/${releaseInfo.owner}/${releaseInfo.repo}/releases/tags/${encodeURIComponent(releaseInfo.tag)}`;
+
+  const response = await fetch(apiUrl, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'YOWLMAFFIA'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub release kon niet worden opgehaald (${response.status}).`);
+  }
+
+  const release = await response.json();
+  const assetUrl = pickGithubReleaseAsset(release);
+
+  if (!assetUrl) {
+    throw new Error('Geen downloadbaar .exe-bestand gevonden in deze GitHub release.');
+  }
+
+  return assetUrl;
+}
+
 function createStorageClient({ supabaseUrl, supabaseAnonKey, accessToken }) {
   const url = String(supabaseUrl || '').trim();
   const anonKey = String(supabaseAnonKey || '').trim();
@@ -118,7 +223,8 @@ async function downloadUpdate(payload = {}) {
     message: 'Update wordt gedownload...'
   });
 
-  const response = await fetch(downloadUrl, { cache: 'no-store' });
+  const resolvedDownloadUrl = await resolveGithubReleaseDownloadUrl(downloadUrl);
+  const response = await fetch(resolvedDownloadUrl, { cache: 'no-store' });
   if (!response.ok || !response.body) {
     throw new Error(`Update kon niet worden gedownload (${response.status}).`);
   }
@@ -136,7 +242,7 @@ async function downloadUpdate(payload = {}) {
     currentVersion: app.getVersion(),
     latestVersion,
     notes,
-    downloadUrl,
+    downloadUrl: resolvedDownloadUrl,
     filePath,
     progress: 100,
     message: 'Update is klaar om te installeren.'

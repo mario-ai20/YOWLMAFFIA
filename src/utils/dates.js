@@ -3,10 +3,6 @@ const dateFormatter = new Intl.DateTimeFormat('nl-BE', {
   timeStyle: 'short'
 });
 
-const relativeFormatter = new Intl.RelativeTimeFormat('nl-BE', {
-  numeric: 'auto'
-});
-
 export function formatUpdatedAt(value) {
   if (!value) {
     return 'Nog niet opgeslagen';
@@ -20,39 +16,57 @@ export function formatUpdatedAt(value) {
   return dateFormatter.format(date);
 }
 
-export function formatRelativeTime(value) {
+function formatDutchRelative(count, unit, isPast) {
+  const absolute = Math.abs(count);
+
+  if (absolute === 0) {
+    return 'nu';
+  }
+
+  if (absolute === 1) {
+    const singularUnit =
+      unit === 'second' ? 'seconde' : unit === 'minute' ? 'minuut' : unit === 'hour' ? 'uur' : 'dag';
+    return isPast ? `1 ${singularUnit} geleden` : `over 1 ${singularUnit}`;
+  }
+
+  const pluralUnit =
+    unit === 'second' ? 'seconden' : unit === 'minute' ? 'minuten' : unit === 'hour' ? 'uur' : 'dagen';
+  return isPast ? `${absolute} ${pluralUnit} geleden` : `over ${absolute} ${pluralUnit}`;
+}
+
+export function formatRelativeTime(value, referenceTime = Date.now()) {
   if (!value) {
-    return 'zopas';
+    return 'zojuist';
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'zopas';
+    return 'zojuist';
   }
 
-  const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const diffSeconds = Math.round((date.getTime() - referenceTime) / 1000);
   const absSeconds = Math.abs(diffSeconds);
 
   if (absSeconds < 60) {
-    return relativeFormatter.format(diffSeconds, 'second');
+    return formatDutchRelative(diffSeconds, 'second', diffSeconds < 0);
   }
 
   const diffMinutes = Math.round(diffSeconds / 60);
   const absMinutes = Math.abs(diffMinutes);
 
   if (absMinutes < 60) {
-    return relativeFormatter.format(diffMinutes, 'minute');
+    return formatDutchRelative(diffMinutes, 'minute', diffMinutes < 0);
   }
 
   const diffHours = Math.round(diffSeconds / 3600);
   const absHours = Math.abs(diffHours);
 
   if (absHours < 24) {
-    return relativeFormatter.format(diffHours, 'hour');
+    return formatDutchRelative(diffHours, 'hour', diffHours < 0);
   }
 
   const diffDays = Math.round(diffSeconds / 86400);
-  return relativeFormatter.format(diffDays, 'day');
+  return formatDutchRelative(diffDays, 'day', diffDays < 0);
 }
 
 export function formatDuration(seconds) {

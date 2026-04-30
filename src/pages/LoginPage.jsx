@@ -1,10 +1,8 @@
-import { ArrowLeft, LockKeyhole, LogIn, MailCheck, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, LogIn, MailCheck, RefreshCcw } from 'lucide-react';
 import BrandMark from '../components/BrandMark';
 
 export default function LoginPage({
   stage = 'credentials',
-  codeTarget = '',
-  identityLabel = '',
   hint = '',
   onLogin,
   onVerifyCode,
@@ -43,7 +41,7 @@ export default function LoginPage({
         >
           <div className="login-form__intro">
             <span className="eyebrow">Alleen voor interne toegang</span>
-            <h1>{isOtpStage ? "YOWL's Authenticator" : 'Log in op YOWLMAFFIA'}</h1>
+            <h1>{isOtpStage ? "Yowl's Authenticator" : 'Log in op YOWLMAFFIA'}</h1>
             <p>
               {isOtpStage
                 ? 'We sturen een eenmalige code naar je mailbox. Die moet je invullen voordat je de app mag openen.'
@@ -55,18 +53,6 @@ export default function LoginPage({
                 : 'Gebruik je e-mail en wachtwoord om te starten. Daarna sturen we je een code per mail.'}
             </p>
           </div>
-
-          {isOtpStage ? (
-            <div className="login-authenticator">
-              <div className="login-authenticator__icon">
-                <ShieldCheck size={22} />
-              </div>
-              <div className="login-authenticator__copy">
-                <strong>Code naar {codeTarget || 'je e-mailadres'}</strong>
-                <span>{identityLabel || 'YOWLMAFFIA account'}</span>
-              </div>
-            </div>
-          ) : null}
 
           {!isOtpStage ? (
             <>

@@ -488,7 +488,7 @@ export default function SettingsMenu({
                           className="input"
                           value={releaseDownloadUrl}
                           onChange={(event) => setReleaseDownloadUrl(event.target.value)}
-                          placeholder="Plak hier de directe GitHub Release-link van YOWLMAFFIA.exe"
+                          placeholder="Plak hier de GitHub release-link of directe .exe-link"
                         />
                       </label>
 
@@ -497,7 +497,7 @@ export default function SettingsMenu({
                         <div className="settings-menu__upload settings-menu__upload--compact">
                           <div className="settings-menu__upload-copy">
                             <strong>{releaseFileName || 'Kies de .exe van de update'}</strong>
-                            <span>Gebruik bij voorkeur een GitHub Release-link. Bestanden boven 50 MB werken op Supabase Free niet als upload.</span>
+                            <span>Gebruik bij voorkeur een GitHub Release-link of een directe .exe-link. Bestanden boven 50 MB werken op Supabase Free niet als upload.</span>
                             <div className="settings-menu__upload-actions">
                               <button className="button button--secondary" type="button" onClick={handleChooseReleaseFile}>
                                 <Upload size={16} />

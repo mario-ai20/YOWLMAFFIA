@@ -459,46 +459,6 @@ a {
   font-size: 0.96rem;
 }
 
-.login-authenticator {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.9rem;
-  align-items: center;
-  padding: 0.95rem 1rem;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at top left, rgba(114, 212, 255, 0.18), transparent 40%),
-    rgba(255, 255, 255, 0.04);
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.login-authenticator__icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.04));
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.login-authenticator__copy {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.login-authenticator__copy strong {
-  font-size: 1rem;
-  color: var(--text);
-}
-
-.login-authenticator__copy span {
-  color: var(--muted-strong);
-  font-size: 0.9rem;
-}
-
 .login-form .field + .field {
   margin-top: 0.1rem;
 }

@@ -1,11 +1,11 @@
 import { Bell, CheckCheck, Clock3, Plus, RefreshCw, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SongCard from '../components/SongCard';
 import UserAvatar from '../components/UserAvatar';
 import { formatRelativeTime } from '../utils/dates';
 import { normalizeUsername } from '../utils/users';
 
-function DashboardListItem({ item, onClick, unread = false, icon: Icon }) {
+function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick }) {
   return (
     <button className={`dashboard-feed__item ${unread ? 'is-unread' : ''}`} type="button" onClick={onClick}>
       <div className="dashboard-feed__item-icon">
@@ -18,7 +18,7 @@ function DashboardListItem({ item, onClick, unread = false, icon: Icon }) {
       <div className="dashboard-feed__item-copy">
         <strong>{item.title}</strong>
         <span>{item.body}</span>
-        <small>{formatRelativeTime(item.timestamp)}</small>
+        <small>{formatRelativeTime(item.timestamp, nowTick)}</small>
       </div>
       {unread ? <CheckCheck size={16} /> : null}
     </button>
@@ -47,9 +47,18 @@ export default function DashboardPage({
   const [announcementLink, setAnnouncementLink] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementBusy, setAnnouncementBusy] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const unreadNotifications = notifications.filter((notification) => !notification.is_read);
   const isSongsPage = pageMode === 'songs';
   const canSendAnnouncements = normalizeUsername(currentUser?.username) === 'mattiz' && typeof onSendAnnouncement === 'function';
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleSendAnnouncement(event) {
     event.preventDefault();
@@ -221,6 +230,7 @@ export default function DashboardPage({
                     item={notification}
                     unread
                     icon={Bell}
+                    nowTick={nowTick}
                     onClick={() => onOpenNotification?.(notification)}
                   />
                 ))}
@@ -254,6 +264,7 @@ export default function DashboardPage({
                     key={item.id}
                     item={item}
                     icon={item.kind === 'team_message' || item.kind === 'private_message' ? Bell : Sparkles}
+                    nowTick={nowTick}
                     onClick={() => {
                       if (item.link) {
                         onOpenNotification?.(item);
