@@ -12,7 +12,7 @@ import {
   resolveUserFromSession
 } from './utils/users';
 import { getDemoSongs } from './utils/demoSongs';
-import { getDemoMusicReleases, loadMusicReleases as loadMusicReleasesFromDatabase, normalizeMusicRelease } from './utils/musicReleases';
+import { loadMusicReleases as loadMusicReleasesFromDatabase, normalizeMusicRelease } from './utils/musicReleases';
 import { normalizeSongStatus } from './utils/songStatus';
 import { compareVersions } from './utils/version';
 import { getAppVersion } from './utils/yowl';
@@ -448,17 +448,17 @@ export default function App() {
         return;
       }
 
-      setMusicReleases(getDemoMusicReleases());
+      setMusicReleases([]);
       setMusicReleasesLoading(false);
       return;
     }
 
     try {
       const loaded = await loadMusicReleasesFromDatabase(supabase);
-      setMusicReleases(loaded.length ? loaded : getDemoMusicReleases());
+      setMusicReleases(loaded);
     } catch (error) {
       console.error(error);
-      setMusicReleases(getDemoMusicReleases());
+      setMusicReleases([]);
     }
 
     setMusicReleasesLoading(false);

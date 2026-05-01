@@ -23,32 +23,10 @@ export function normalizeMusicRelease(record = {}) {
     spotifyUrl,
     coverUrl,
     coverStoragePath,
-    isDemo: Boolean(record.isDemo || record.is_demo),
     sortOrder: Number(record.sort_order || 0),
     createdAt: record.created_at || new Date().toISOString(),
     updatedAt: record.updated_at || record.created_at || new Date().toISOString()
   };
-}
-
-export const DEMO_MUSIC_RELEASES = [
-  {
-    id: 'demo-release-viera-d',
-    title: 'VIERA D',
-    artist_name: 'YOWLMAFFIA',
-    spotify_url: createSpotifySearchUrl('VIERA D', 'YOWLMAFFIA'),
-    cover_url: createDefaultCoverDataUrl('VIERA D', 'Spotify')
-  },
-  {
-    id: 'demo-release-ik-e-me-chickie',
-    title: 'Ik e me chickie',
-    artist_name: 'YOWLMAFFIA',
-    spotify_url: createSpotifySearchUrl('Ik e me chickie', 'YOWLMAFFIA'),
-    cover_url: createDefaultCoverDataUrl('Ik e me chickie', 'Spotify')
-  }
-];
-
-export function getDemoMusicReleases() {
-  return DEMO_MUSIC_RELEASES.map((release) => normalizeMusicRelease({ ...release, isDemo: true }));
 }
 
 export async function loadMusicReleases(supabase) {
@@ -62,7 +40,12 @@ export async function loadMusicReleases(supabase) {
     throw error;
   }
 
-  return (data || []).map((release) => normalizeMusicRelease(release));
+  return (data || [])
+    .map((release) => normalizeMusicRelease(release))
+    .filter((release) => {
+      const releaseId = String(release.id || '').trim().toLowerCase();
+      return releaseId && !releaseId.startsWith('demo-release-');
+    });
 }
 
 export function buildMusicReleaseDisplayTitle(release = {}) {
