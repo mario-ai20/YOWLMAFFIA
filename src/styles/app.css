@@ -69,6 +69,15 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 body {
@@ -404,6 +413,13 @@ a {
   place-items: center;
   padding: 2rem;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.login-page::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .login-page__panel {
@@ -704,10 +720,12 @@ a {
 
 .app-shell__user {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.8rem;
+  justify-content: flex-end;
+  gap: 0.65rem;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .app-shell__clock {
@@ -723,6 +741,7 @@ a {
   font-weight: 600;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  margin-right: 0.25rem;
 }
 
 .user-chip {
@@ -733,6 +752,7 @@ a {
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
+  min-width: 0;
 }
 
 .user-avatar {
@@ -791,8 +811,11 @@ a {
 }
 
 .app-shell__status {
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 0.55rem;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .app-shell__notifications {
@@ -801,7 +824,7 @@ a {
   gap: 0.45rem;
   color: var(--muted);
   font-size: 0.82rem;
-  justify-self: end;
+  white-space: nowrap;
 }
 
 .settings-menu {
@@ -1498,6 +1521,13 @@ a {
   min-height: 0;
   overflow: auto;
   padding-right: 0.15rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-shell__main::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .mini-player {
