@@ -52,7 +52,7 @@ export default function MusicReleaseCard({ release, onDelete, canManage = false 
             title="Verwijder banner"
           >
             <Trash2 size={16} />
-            Wis
+            Verwijder
           </button>
         ) : null}
       </div>

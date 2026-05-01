@@ -1763,23 +1763,15 @@ export default function App() {
       cover_storage_path: nextCoverStoragePath
     });
 
-    const { data, error } = await supabase
-      .from('music_releases')
-      .upsert(
-        {
-          id: nextRelease.id,
-          title: nextRelease.title,
-          artist_name: nextRelease.artistName,
-          spotify_url: nextRelease.spotifyUrl,
-          cover_url: nextRelease.coverUrl,
-          cover_storage_path: nextCoverStoragePath,
-          sort_order: nextRelease.sortOrder,
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'id' }
-      )
-      .select('*')
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('upsert_music_release', {
+      p_id: nextRelease.id,
+      p_title: nextRelease.title,
+      p_artist_name: nextRelease.artistName,
+      p_spotify_url: nextRelease.spotifyUrl,
+      p_cover_url: nextRelease.coverUrl,
+      p_cover_storage_path: nextCoverStoragePath,
+      p_sort_order: nextRelease.sortOrder
+    });
 
     if (error) {
       if (isMissingMusicReleasesTableError(error)) {
@@ -1821,7 +1813,7 @@ export default function App() {
       }
     }
 
-    const { error } = await supabase.from('music_releases').delete().eq('id', releaseId);
+    const { error } = await supabase.rpc('delete_music_release', { p_id: releaseId });
     if (error) {
       throw error;
     }

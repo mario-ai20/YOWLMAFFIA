@@ -398,6 +398,81 @@ create policy "Mattiz can delete music releases"
   to authenticated
   using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
 
+create or replace function public.upsert_music_release(
+  p_id uuid,
+  p_title text,
+  p_artist_name text,
+  p_spotify_url text,
+  p_cover_url text,
+  p_cover_storage_path text,
+  p_sort_order integer default 0
+)
+returns public.music_releases
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  saved_release public.music_releases%rowtype;
+begin
+  if not (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz') then
+    raise exception 'Alleen Mattiz mag muziekbanners beheren.';
+  end if;
+
+  insert into public.music_releases (
+    id,
+    title,
+    artist_name,
+    spotify_url,
+    cover_url,
+    cover_storage_path,
+    sort_order,
+    updated_at
+  )
+  values (
+    coalesce(p_id, gen_random_uuid()),
+    coalesce(nullif(trim(coalesce(p_title, '')), ''), 'Onbekende release'),
+    coalesce(nullif(trim(coalesce(p_artist_name, '')), ''), 'YOWLMAFFIA'),
+    coalesce(nullif(trim(coalesce(p_spotify_url, '')), ''), 'https://open.spotify.com'),
+    coalesce(p_cover_url, ''),
+    coalesce(p_cover_storage_path, ''),
+    coalesce(p_sort_order, 0),
+    now()
+  )
+  on conflict (id) do update set
+    title = excluded.title,
+    artist_name = excluded.artist_name,
+    spotify_url = excluded.spotify_url,
+    cover_url = excluded.cover_url,
+    cover_storage_path = excluded.cover_storage_path,
+    sort_order = excluded.sort_order,
+    updated_at = now()
+  returning * into saved_release;
+
+  return saved_release;
+end;
+$$;
+
+grant execute on function public.upsert_music_release(uuid, text, text, text, text, text, integer) to authenticated;
+
+create or replace function public.delete_music_release(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz') then
+    raise exception 'Alleen Mattiz mag muziekbanners verwijderen.';
+  end if;
+
+  delete from public.music_releases
+  where id = p_id;
+end;
+$$;
+
+grant execute on function public.delete_music_release(uuid) to authenticated;
+
 do $$ 
 begin
   alter publication supabase_realtime add table public.allowed_users;
