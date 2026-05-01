@@ -130,37 +130,41 @@ export default function AppShell({
             <span>{headerDateTime}</span>
           </div>
 
-          <div className="app-shell__status">
-            <div className="app-shell__notifications" aria-live="polite">
-              <Bell size={15} />
-              <span>{notificationCount > 0 ? `${notificationCount} nieuw` : 'Alles bijgewerkt'}</span>
-            </div>
+          <div className="app-shell__user-row">
+            <div className="app-shell__status">
+              <div className="app-shell__notifications" aria-live="polite">
+                <Bell size={15} />
+                <span>{notificationCount > 0 ? `${notificationCount} nieuw` : 'Alles bijgewerkt'}</span>
+              </div>
 
-            <div className="user-chip">
-              <UserAvatar user={user} size={42} showDot />
-              <div>
-                <strong>{user?.displayName || 'Onbekend'}</strong>
-                <span>{user?.status_message || user?.bio || 'Beschikbaar'}</span>
+              <div className="user-chip">
+                <UserAvatar user={user} size={42} showDot />
+                <div>
+                  <strong>{user?.displayName || 'Onbekend'}</strong>
+                  <span>{user?.status_message || user?.bio || 'Beschikbaar'}</span>
+                </div>
               </div>
             </div>
+
+            <div className="app-shell__actions">
+              <SettingsMenu
+                user={user}
+                themeMode={themeMode}
+                onThemeModeChange={setThemeMode}
+                onProfileSave={onProfileSave}
+                onAvatarUpload={onAvatarUpload}
+                onAvatarDelete={onAvatarDelete}
+                onEmailChange={onEmailChange}
+                onPublishInfo={onPublishInfo}
+                onPublishUpdate={onPublishUpdate}
+              />
+
+              <button className="icon-text-button" type="button" onClick={onSignOut}>
+                <LogOut size={16} />
+                Uitloggen
+              </button>
+            </div>
           </div>
-
-          <SettingsMenu
-            user={user}
-            themeMode={themeMode}
-            onThemeModeChange={setThemeMode}
-            onProfileSave={onProfileSave}
-            onAvatarUpload={onAvatarUpload}
-            onAvatarDelete={onAvatarDelete}
-            onEmailChange={onEmailChange}
-            onPublishInfo={onPublishInfo}
-            onPublishUpdate={onPublishUpdate}
-          />
-
-          <button className="icon-text-button" type="button" onClick={onSignOut}>
-            <LogOut size={16} />
-            Uitloggen
-          </button>
         </div>
       </header>
 
