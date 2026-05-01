@@ -408,6 +408,23 @@ export default function App() {
   const [createSongBusy, setCreateSongBusy] = useState(false);
   const [createSongError, setCreateSongError] = useState('');
   const [onlineUsernames, setOnlineUsernames] = useState([]);
+  const [presenceLastSeenByUsername, setPresenceLastSeenByUsername] = useState(() => {
+    if (typeof window === 'undefined') {
+      return {};
+    }
+
+    try {
+      const stored = window.localStorage.getItem('yowlmaffia:presence-last-seen');
+      if (!stored) {
+        return {};
+      }
+
+      const parsed = JSON.parse(stored);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const cleanedAvatarFoldersRef = useRef(new Set());
   const loginFlowBypassRef = useRef(false);
 
@@ -705,6 +722,14 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem('yowlmaffia:presence-last-seen', JSON.stringify(presenceLastSeenByUsername));
+    } catch {
+      // Ignore localStorage errors and keep presence working.
+    }
+  }, [presenceLastSeenByUsername]);
+
+  useEffect(() => {
     if (!currentUser || !supabase) {
       setOnlineUsernames([]);
       return undefined;
@@ -716,6 +741,7 @@ export default function App() {
     const syncPresenceUsers = () => {
       const state = channel.presenceState();
       const nextUsernames = new Set();
+      const nextLastSeen = {};
 
       Object.values(state)
         .flat()
@@ -723,15 +749,30 @@ export default function App() {
           const username = normalizePresenceUsername(entry.username || entry.id || entry.userId || entry.email || '');
           if (username) {
             nextUsernames.add(username);
+            const seenAt = Number(entry.updatedAt || entry.updated_at || entry.lastSeenAt || Date.now());
+            nextLastSeen[username] = Number.isFinite(seenAt) ? seenAt : Date.now();
           }
         });
 
       if (!cancelled) {
         setOnlineUsernames(Array.from(nextUsernames));
+        setPresenceLastSeenByUsername((prev) => {
+          const merged = { ...(prev || {}) };
+
+          Object.entries(nextLastSeen).forEach(([username, seenAt]) => {
+            merged[username] = seenAt;
+          });
+
+          return merged;
+        });
       }
     };
 
     setOnlineUsernames([normalizePresenceUsername(currentUser.username)].filter(Boolean));
+    setPresenceLastSeenByUsername((prev) => ({
+      ...(prev || {}),
+      [normalizePresenceUsername(currentUser.username)]: Date.now()
+    }));
 
     channel.on('presence', { event: 'sync' }, syncPresenceUsers);
     channel.subscribe(async (status) => {
@@ -2181,6 +2222,7 @@ export default function App() {
                 loading={authLoading}
                 allowedUsers={allowedUsers}
                 onlineUsernames={onlineUsernames}
+                presenceLastSeenByUsername={presenceLastSeenByUsername}
               />
             }
           />

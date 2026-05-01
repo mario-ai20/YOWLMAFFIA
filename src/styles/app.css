@@ -2282,6 +2282,14 @@ a {
   color: color-mix(in srgb, var(--muted) 88%, var(--text));
 }
 
+.chat-person__last-seen {
+  margin-top: 0.08rem;
+  color: color-mix(in srgb, var(--muted) 92%, var(--text));
+  font-size: 0.74rem;
+  font-weight: 500;
+  text-transform: none;
+}
+
 .profile-dialog {
   position: fixed;
   inset: 0;

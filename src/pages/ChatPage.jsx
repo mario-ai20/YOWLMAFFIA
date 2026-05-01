@@ -32,7 +32,8 @@ export default function ChatPage({
   currentUser,
   loading = false,
   allowedUsers = DEFAULT_ALLOWED_USERS,
-  onlineUsernames = []
+  onlineUsernames = [],
+  presenceLastSeenByUsername = {}
 }) {
   if (!supabase) {
     return <SetupNotice />;
@@ -73,6 +74,17 @@ export default function ChatPage({
     () => allowedUsers.filter((user) => !presenceSet.has(normalizeUsername(user.username))),
     [allowedUsers, presenceSet]
   );
+
+  function getOfflineLastSeenLabel(user) {
+    const username = normalizeUsername(user?.username);
+    const lastSeenAt = presenceLastSeenByUsername?.[username];
+
+    if (!lastSeenAt) {
+      return '';
+    }
+
+    return `${formatRelativeTime(lastSeenAt, nowTick)} online`;
+  }
 
   useEffect(() => {
     if (scope !== 'private') {
@@ -627,6 +639,7 @@ export default function ChatPage({
               {offlinePeople.length ? (
                 offlinePeople.map((user) => {
                   const presenceStatus = resolvePresenceStatus(user, onlineUsernames);
+                  const lastSeenLabel = getOfflineLastSeenLabel(user);
 
                   return (
                     <button
@@ -645,6 +658,7 @@ export default function ChatPage({
                       <div>
                         <strong>{user.displayName || user.username}</strong>
                         <span className={`chat-person__status chat-person__status--${presenceStatus}`}>{presenceStatus}</span>
+                        {lastSeenLabel ? <span className="chat-person__last-seen">{lastSeenLabel}</span> : null}
                       </div>
                     </button>
                   );
