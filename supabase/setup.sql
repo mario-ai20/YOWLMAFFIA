@@ -951,3 +951,6 @@ create policy "Mattiz delete app updates"
   for delete
   to authenticated
   using (bucket_id = 'app-updates' and public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+
+NOTIFY pgrst, 'reload schema';

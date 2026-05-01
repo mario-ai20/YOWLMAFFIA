@@ -429,26 +429,6 @@ a {
   gap: 1.4rem;
 }
 
-.login-page__build {
-  width: fit-content;
-}
-
-.build-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.45rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  width: fit-content;
-}
-
 .login-page__hero {
   display: flex;
   align-items: center;

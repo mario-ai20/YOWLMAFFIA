@@ -68,3 +68,6 @@ alter table public.messages
   add column if not exists reply_to_body text;
 alter table public.messages
   add column if not exists reply_to_created_at timestamptz;
+
+
+NOTIFY pgrst, 'reload schema';
