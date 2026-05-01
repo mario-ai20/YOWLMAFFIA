@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { CirclePlus, ImageUp, Music4, RefreshCw } from 'lucide-react';
 import LyricsEditor from './LyricsEditor';
 import SongInfoPanel from './SongInfoPanel';
@@ -704,11 +704,12 @@ export default function EditorPage({
         hidden
         type="file"
         accept="audio/*,video/mp4"
+        multiple
         onChange={async (event) => {
-          const file = event.target.files?.[0];
+          const files = Array.from(event.target.files || []);
           event.target.value = '';
-          if (file) {
-            await handleTrackUpload(file);
+          if (files.length) {
+            await handleTrackUpload(files);
           }
         }}
       />

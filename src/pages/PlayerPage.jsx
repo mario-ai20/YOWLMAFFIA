@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, RefreshCw, Search, Upload } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MiniPlayer from '../components/MiniPlayer';
 import TrackBrowser from '../components/TrackBrowser';
 import { usePlayer } from '../components/PlayerProvider';

@@ -1,5 +1,5 @@
 import { Bell, Library, LogOut, LayoutDashboard, MessagesSquare } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
 import { getAppVersion } from '../utils/yowl';
@@ -31,6 +31,7 @@ export default function AppShell({
   onAvatarUpload,
   onAvatarDelete,
   onEmailChange,
+  onPublishInfo,
   onPublishUpdate,
   children
 }) {
@@ -161,6 +162,7 @@ export default function AppShell({
             onAvatarUpload={onAvatarUpload}
             onAvatarDelete={onAvatarDelete}
             onEmailChange={onEmailChange}
+            onPublishInfo={onPublishInfo}
             onPublishUpdate={onPublishUpdate}
           />
 

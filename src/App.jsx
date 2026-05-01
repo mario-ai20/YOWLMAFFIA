@@ -1,13 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import AppShell from './components/AppShell';
-import EditorPage from './components/EditorPage';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import ChatPage from './pages/ChatPage';
-import SetupNotice from './components/SetupNotice';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router';
 import CreateSongDialog from './components/CreateSongDialog';
-import { PlayerProvider } from './components/PlayerProvider';
 import { supabase, supabaseUrl, supabaseAnonKey, isSupabaseConfigured } from './utils/supabase';
 import {
   DEFAULT_ALLOWED_USERS,
@@ -19,9 +12,17 @@ import {
   resolveUserFromSession
 } from './utils/users';
 import { getDemoSongs } from './utils/demoSongs';
-import { getDemoLibrary } from './utils/demoMedia';
-import { loadAudioLibrary, createAudioTrackFromStorageItem } from './utils/storage';
+import { getDemoMusicReleases, loadMusicReleases as loadMusicReleasesFromDatabase, normalizeMusicRelease } from './utils/musicReleases';
 import { normalizeSongStatus } from './utils/songStatus';
+import { compareVersions } from './utils/version';
+import { getAppVersion } from './utils/yowl';
+
+const AppShell = lazy(() => import('./components/AppShell'));
+const EditorPage = lazy(() => import('./components/EditorPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ChatPage = lazy(() => import('./pages/ChatPage'));
+const SetupNotice = lazy(() => import('./components/SetupNotice'));
 
 const isProduction = import.meta.env.PROD;
 const allowOfflineDemo = !isProduction;
@@ -110,6 +111,27 @@ function isMissingSongsStatusColumnError(error) {
     || message.includes('schema cache');
 }
 
+function isMissingInfoBlocksTableError(error) {
+  const message = String(error?.message || error?.error_description || error?.details || '').toLowerCase();
+  return (
+    message.includes("could not find the table 'public.app_info_blocks' in the schema cache") ||
+    message.includes('schema cache') ||
+    message.includes('relation "public.app_info_blocks" does not exist') ||
+    message.includes('table "app_info_blocks" does not exist') ||
+    message.includes('could not find relation')
+  );
+}
+
+function isMissingMusicReleasesTableError(error) {
+  const message = String(error?.message || error?.error_description || error?.details || '').toLowerCase();
+  return (
+    message.includes("could not find the table 'public.music_releases' in the schema cache") ||
+    message.includes('relation "public.music_releases" does not exist') ||
+    message.includes('table "music_releases" does not exist') ||
+    message.includes('could not find relation')
+  );
+}
+
 function buildActivityItems(songRows = [], messageRows = [], allowedUsers = []) {
   const songItems = (songRows || []).slice(0, 6).map((song) => ({
     id: 'song-' + song.id,
@@ -148,6 +170,7 @@ function ProtectedLayout({
   onAvatarUpload,
   onAvatarDelete,
   onEmailChange,
+  onPublishInfo,
   onPublishUpdate
 }) {
   if (!currentUser) {
@@ -155,18 +178,28 @@ function ProtectedLayout({
   }
 
   return (
-    <AppShell
-      user={currentUser}
-      onSignOut={onSignOut}
-      notificationCount={notificationCount}
-      onProfileSave={onProfileSave}
-      onAvatarUpload={onAvatarUpload}
-      onAvatarDelete={onAvatarDelete}
-      onEmailChange={onEmailChange}
-      onPublishUpdate={onPublishUpdate}
+    <Suspense
+      fallback={
+        <div className="empty-state">
+          <strong>Werkruimte laden...</strong>
+          <p>We openen de app veilig.</p>
+        </div>
+      }
     >
-      <Outlet />
-    </AppShell>
+      <AppShell
+        user={currentUser}
+        onSignOut={onSignOut}
+        notificationCount={notificationCount}
+        onProfileSave={onProfileSave}
+        onAvatarUpload={onAvatarUpload}
+        onAvatarDelete={onAvatarDelete}
+        onEmailChange={onEmailChange}
+        onPublishInfo={onPublishInfo}
+        onPublishUpdate={onPublishUpdate}
+      >
+        <Outlet />
+      </AppShell>
+    </Suspense>
   );
 }
 
@@ -254,24 +287,33 @@ function EditorRoute(props) {
   }
 
   return (
-    <EditorPage
-      {...props}
-      song={resolvedSong}
-      onOpenSongPicker={() => props.navigate('/dashboard')}
-      onSongImported={async (payload) => {
-        if (!payload || !resolvedSong) {
-          return;
-        }
+    <Suspense
+      fallback={
+        <div className="empty-state">
+          <strong>Editor laden...</strong>
+          <p>We openen het nummer.</p>
+        </div>
+      }
+    >
+      <EditorPage
+        {...props}
+        song={resolvedSong}
+        onOpenSongPicker={() => props.navigate('/dashboard')}
+        onSongImported={async (payload) => {
+          if (!payload || !resolvedSong) {
+            return;
+          }
 
-        await props.onSaveSong(resolvedSong.id, {
-          title: payload.title || resolvedSong.title,
-          lyrics: payload.lyrics || resolvedSong.lyrics,
-          cover_url: payload.coverUrl || resolvedSong.cover_url,
-          status: normalizeSongStatus(payload.status || resolvedSong.status),
-          last_edited_by: props.currentUser?.displayName || resolvedSong.last_edited_by
-        });
-      }}
-    />
+          await props.onSaveSong(resolvedSong.id, {
+            title: payload.title || resolvedSong.title,
+            lyrics: payload.lyrics || resolvedSong.lyrics,
+            cover_url: payload.coverUrl || resolvedSong.cover_url,
+            status: normalizeSongStatus(payload.status || resolvedSong.status),
+            last_edited_by: props.currentUser?.displayName || resolvedSong.last_edited_by
+          });
+        }}
+      />
+    </Suspense>
   );
 }
 
@@ -297,8 +339,16 @@ function LoginRoute({
   }
 
   return (
-    <>
-      {showSetupNotice ? <SetupNotice /> : null}
+    <Suspense
+      fallback={
+        <div className="empty-state">
+          <strong>Login laden...</strong>
+          <p>We zetten de toegang klaar.</p>
+        </div>
+      }
+    >
+      <>
+        {showSetupNotice ? <SetupNotice /> : null}
         <LoginPage
           stage={stage}
           codeTarget={codeTarget}
@@ -314,7 +364,8 @@ function LoginRoute({
           loading={loading}
           error={error}
         />
-    </>
+      </>
+    </Suspense>
   );
 }
 
@@ -333,8 +384,8 @@ export default function App() {
   const [allowedUsers, setAllowedUsers] = useState(DEFAULT_ALLOWED_USERS);
   const [songs, setSongs] = useState([]);
   const [songsLoading, setSongsLoading] = useState(true);
-  const [tracks, setTracks] = useState([]);
-  const [tracksLoading, setTracksLoading] = useState(true);
+  const [musicReleases, setMusicReleases] = useState([]);
+  const [musicReleasesLoading, setMusicReleasesLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [activity, setActivity] = useState([]);
@@ -373,30 +424,30 @@ export default function App() {
     setSongsLoading(false);
   };
 
-  const loadTracks = async () => {
-    setTracksLoading(true);
+  const loadMusicReleases = async () => {
+    setMusicReleasesLoading(true);
 
     if (!isSupabaseConfigured || !supabase) {
       if (!allowOfflineDemo) {
-        setTracks([]);
-        setTracksLoading(false);
+        setMusicReleases([]);
+        setMusicReleasesLoading(false);
         return;
       }
 
-      setTracks(getDemoLibrary());
-      setTracksLoading(false);
+      setMusicReleases(getDemoMusicReleases());
+      setMusicReleasesLoading(false);
       return;
     }
 
     try {
-      const loaded = await loadAudioLibrary(supabase);
-      setTracks(loaded.length ? loaded : getDemoLibrary());
+      const loaded = await loadMusicReleasesFromDatabase(supabase);
+      setMusicReleases(loaded.length ? loaded : getDemoMusicReleases());
     } catch (error) {
       console.error(error);
-      setTracks(getDemoLibrary());
+      setMusicReleases(getDemoMusicReleases());
     }
 
-    setTracksLoading(false);
+    setMusicReleasesLoading(false);
   };
 
   const loadNotifications = async () => {
@@ -752,7 +803,7 @@ export default function App() {
     }
 
     loadSongs();
-    loadTracks();
+    loadMusicReleases();
 
     if (!supabase) {
       return undefined;
@@ -765,10 +816,10 @@ export default function App() {
       })
       .subscribe();
 
-    const tracksChannel = supabase
-      .channel('tracks-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-        loadActivity();
+    const musicReleasesChannel = supabase
+      .channel('music-releases-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_releases' }, () => {
+        loadMusicReleases();
       })
       .subscribe();
 
@@ -792,11 +843,11 @@ export default function App() {
 
     return () => {
       supabase.removeChannel(songsChannel);
-      supabase.removeChannel(tracksChannel);
+      supabase.removeChannel(musicReleasesChannel);
       supabase.removeChannel(notificationsChannel);
       supabase.removeChannel(messagesActivityChannel);
     };
-  }, [currentUser]);
+  }, [currentUser, allowedUsers]);
 
   const activeUser = useMemo(() => currentUser || null, [currentUser]);
   const unreadNotificationCount = notifications.filter((notification) => !notification.is_read).length;
@@ -1564,9 +1615,14 @@ export default function App() {
 
     const nextVersion = String(version || '').trim();
     const nextNotes = String(notes || '').trim();
+    const currentVersion = await getAppVersion();
 
     if (!nextVersion) {
       throw new Error('Geef een versienummer op.');
+    }
+
+    if (compareVersions(nextVersion, currentVersion) <= 0) {
+      throw new Error(`Kies een versie hoger dan ${currentVersion}. Anders blijft de update hetzelfde.`);
     }
 
     const nextDownloadUrl = String(downloadUrl || '').trim();
@@ -1616,6 +1672,163 @@ export default function App() {
     return {
       ok: true,
       message: `Update ${nextVersion} is gepubliceerd.`
+    };
+  }
+
+  async function handlePublishInfo({ title = '', body = '', isActive = true } = {}) {
+    if (!currentUser) {
+      throw new Error('Je moet ingelogd zijn om info te publiceren.');
+    }
+
+    if (normalizeUsername(currentUser.username) !== 'mattiz') {
+      throw new Error('Alleen Mattiz mag info publiceren.');
+    }
+
+    if (!supabase) {
+      throw new Error('Supabase is niet gekoppeld.');
+    }
+
+    const nextTitle = String(title || '').trim();
+    const nextBody = String(body || '').trim();
+    const nextIsActive = Boolean(isActive);
+
+    if (nextIsActive && (!nextTitle || !nextBody)) {
+      throw new Error('Vul zowel een titel als een bericht in.');
+    }
+
+    const { error } = await supabase.from('app_info_blocks').upsert(
+      {
+        id: 'current',
+        title: nextTitle,
+        body: nextBody,
+        is_active: nextIsActive,
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        onConflict: 'id'
+      }
+    );
+
+    if (error) {
+      if (isMissingInfoBlocksTableError(error)) {
+        throw new Error('De info-tabel ontbreekt nog in Supabase. Run supabase/setup.sql opnieuw.');
+      }
+
+      throw error;
+    }
+
+    return {
+      ok: true,
+      message: 'Info opgeslagen.'
+    };
+  }
+
+  async function handleSaveMusicRelease({
+    id = null,
+    title = '',
+    artistName = '',
+    spotifyUrl = '',
+    coverUrl = '',
+    coverStoragePath = ''
+  } = {}) {
+    if (!currentUser) {
+      throw new Error('Je moet ingelogd zijn om een muziekbanner op te slaan.');
+    }
+
+    if (normalizeUsername(currentUser.username) !== 'mattiz') {
+      throw new Error('Alleen Mattiz mag muziekbanners beheren.');
+    }
+
+    if (!supabase) {
+      throw new Error('Supabase is niet gekoppeld.');
+    }
+
+    const nextTitle = String(title || '').trim();
+    const nextArtistName = String(artistName || '').trim();
+    const nextSpotifyUrl = String(spotifyUrl || '').trim();
+    const nextCoverUrl = String(coverUrl || '').trim();
+    const nextCoverStoragePath = String(coverStoragePath || '').trim();
+
+    if (!nextTitle) {
+      throw new Error('Geef een titel op.');
+    }
+
+    const nextRelease = normalizeMusicRelease({
+      id: id || crypto.randomUUID(),
+      title: nextTitle,
+      artist_name: nextArtistName || 'YOWLMAFFIA',
+      spotify_url: nextSpotifyUrl,
+      cover_url: nextCoverUrl,
+      cover_storage_path: nextCoverStoragePath
+    });
+
+    const { data, error } = await supabase
+      .from('music_releases')
+      .upsert(
+        {
+          id: nextRelease.id,
+          title: nextRelease.title,
+          artist_name: nextRelease.artistName,
+          spotify_url: nextRelease.spotifyUrl,
+          cover_url: nextRelease.coverUrl,
+          cover_storage_path: nextCoverStoragePath,
+          sort_order: nextRelease.sortOrder,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'id' }
+      )
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingMusicReleasesTableError(error)) {
+        throw new Error('De muziekbanners-tabel ontbreekt nog in Supabase. Run supabase/setup.sql opnieuw.');
+      }
+
+      throw error;
+    }
+
+    return {
+      ok: true,
+      data: data ? normalizeMusicRelease(data) : nextRelease,
+      message: 'Spotify-banner opgeslagen.'
+    };
+  }
+
+  async function handleDeleteMusicRelease(release = {}) {
+    if (!currentUser) {
+      throw new Error('Je moet ingelogd zijn om een muziekbanner te verwijderen.');
+    }
+
+    if (normalizeUsername(currentUser.username) !== 'mattiz') {
+      throw new Error('Alleen Mattiz mag muziekbanners verwijderen.');
+    }
+
+    if (!supabase) {
+      throw new Error('Supabase is niet gekoppeld.');
+    }
+
+    const releaseId = String(release.id || '').trim();
+    if (!releaseId) {
+      throw new Error('Muziekbanner niet gevonden.');
+    }
+
+    if (release.coverStoragePath) {
+      const { error: removeCoverError } = await supabase.storage.from('covers').remove([release.coverStoragePath]);
+      if (removeCoverError) {
+        console.error(removeCoverError);
+      }
+    }
+
+    const { error } = await supabase.from('music_releases').delete().eq('id', releaseId);
+    if (error) {
+      throw error;
+    }
+
+    return {
+      ok: true,
+      message: 'Spotify-banner verwijderd.'
     };
   }
 
@@ -1738,69 +1951,93 @@ export default function App() {
     return uploadFileToStorage(file, bucket, folder);
   }
 
-  async function handleUploadTrack(file, song) {
+  async function handleUploadTrack(fileOrFiles, song) {
     if (normalizeUsername(activeUser?.username) !== 'mattiz') {
       throw new Error('Alleen Mattiz kan tracks uploaden.');
     }
 
-    const uploaded = await uploadFileToStorage(
-      file,
-      'audio',
-      song ? `songs/${sanitizeSegment(song.title || song.id)}` : 'tracks'
-    );
+    const files = Array.isArray(fileOrFiles)
+      ? fileOrFiles.filter(Boolean)
+      : fileOrFiles?.length && typeof fileOrFiles !== 'string'
+        ? Array.from(fileOrFiles).filter(Boolean)
+        : fileOrFiles
+          ? [fileOrFiles]
+          : [];
 
-    const track = createAudioTrackFromStorageItem(
-      {
-        id: uploaded.path,
-        name: file.name,
-        fullPath: uploaded.path,
-        metadata: {
-          mimetype: file.type,
-          size: file.size
-        },
-        publicUrl: uploaded.url
-      },
-      'assets/yowl.jpg'
-    );
-
-    if (!supabase) {
-      if (!allowOfflineDemo) {
-        return { track: null };
-      }
-
-      setTracks((previous) => [track, ...previous.filter((item) => item.url !== track.url)]);
-    } else {
-      loadTracks();
+    if (!files.length) {
+      return { track: null, tracks: [] };
     }
 
-    return { track };
+    const uploadedTracks = [];
+
+    const nextFolder = song ? `songs/${sanitizeSegment(song.title || song.id)}` : 'tracks';
+    const uploadErrors = [];
+
+    for (const file of files) {
+      try {
+        const uploaded = await uploadFileToStorage(file, 'audio', nextFolder);
+        uploadedTracks.push({
+          id: uploaded.path,
+          name: file.name,
+          fullPath: uploaded.path,
+          metadata: {
+            mimetype: file.type,
+            size: file.size
+          },
+          publicUrl: uploaded.url
+        });
+      } catch (error) {
+        uploadErrors.push(`${file.name}: ${error instanceof Error ? error.message : 'Upload mislukt.'}`);
+      }
+    }
+
+    if (!uploadedTracks.length && uploadErrors.length) {
+      throw new Error(uploadErrors.join(' | '));
+    }
+
+    if (uploadErrors.length) {
+      return {
+        track: uploadedTracks[0] || null,
+        tracks: uploadedTracks,
+        warnings: uploadErrors
+      };
+    }
+
+    return { track: uploadedTracks[0] || null, tracks: uploadedTracks };
   }
 
   return (
-    <PlayerProvider>
+    <Suspense
+      fallback={
+        <div className="empty-state">
+          <strong>Even laden...</strong>
+          <p>We openen de app.</p>
+        </div>
+      }
+    >
       <Routes>
         <Route
           path="/login"
           element={
-              <LoginRoute
-                currentUser={activeUser}
-                onLogin={handleLogin}
-                onVerifyCode={handleVerifyLoginCode}
-                onResendCode={handleResendLoginCode}
-                onForgotPassword={handleForgotPassword}
-                onRecoverPassword={handleRecoverPassword}
-                onBack={handleBackToCredentials}
-                stage={loginStage}
-                codeTarget={loginEmail}
-                identityLabel={loginIdentity}
-                hint={loginHint}
-                loading={authLoading || loginBusy}
-                error={authError}
-                forgotPasswordEnabled={loginFailedAttempts >= 3}
-                showSetupNotice={!isSupabaseConfigured}
-              />
-            }
-          />
+            <LoginRoute
+              currentUser={activeUser}
+              onLogin={handleLogin}
+              onVerifyCode={handleVerifyLoginCode}
+              onResendCode={handleResendLoginCode}
+              onForgotPassword={handleForgotPassword}
+              onRecoverPassword={handleRecoverPassword}
+              onBack={handleBackToCredentials}
+              stage={loginStage}
+              codeTarget={loginEmail}
+              identityLabel={loginIdentity}
+              hint={loginHint}
+              loading={authLoading || loginBusy}
+              error={authError}
+              forgotPasswordEnabled={loginFailedAttempts >= 3}
+              showSetupNotice={!isSupabaseConfigured}
+            />
+          }
+        />
         <Route
           element={
             <ProtectedLayout
@@ -1811,6 +2048,7 @@ export default function App() {
               onAvatarUpload={handleUploadProfileAvatar}
               onAvatarDelete={handleDeleteProfileAvatar}
               onEmailChange={handleChangeEmail}
+              onPublishInfo={handlePublishInfo}
               onPublishUpdate={handlePublishUpdate}
             />
           }
@@ -1823,8 +2061,8 @@ export default function App() {
                 songs={songs}
                 loading={songsLoading}
                 allowedUsers={allowedUsers}
-                tracks={tracks}
-                tracksLoading={tracksLoading}
+                musicReleases={musicReleases}
+                musicReleasesLoading={musicReleasesLoading}
                 notifications={notifications}
                 notificationsLoading={notificationsLoading}
                 activity={activity}
@@ -1836,8 +2074,10 @@ export default function App() {
                 onOpenNotification={handleOpenNotification}
                 onClearNotifications={handleClearAllNotifications}
                 onSendAnnouncement={handleSendAnnouncement}
-                onUploadTrack={handleUploadTrack}
-                onRefreshTracks={loadTracks}
+                onUploadAsset={handleUploadAsset}
+                onRefreshMusicReleases={loadMusicReleases}
+                onSaveMusicRelease={handleSaveMusicRelease}
+                onDeleteMusicRelease={handleDeleteMusicRelease}
               />
             }
           />
@@ -1849,8 +2089,8 @@ export default function App() {
                 songs={songs}
                 loading={songsLoading}
                 allowedUsers={allowedUsers}
-                tracks={tracks}
-                tracksLoading={tracksLoading}
+                musicReleases={musicReleases}
+                musicReleasesLoading={musicReleasesLoading}
                 notifications={notifications}
                 notificationsLoading={notificationsLoading}
                 activity={activity}
@@ -1862,8 +2102,10 @@ export default function App() {
                 onOpenNotification={handleOpenNotification}
                 onClearNotifications={handleClearAllNotifications}
                 onSendAnnouncement={handleSendAnnouncement}
-                onUploadTrack={handleUploadTrack}
-                onRefreshTracks={loadTracks}
+                onUploadAsset={handleUploadAsset}
+                onRefreshMusicReleases={loadMusicReleases}
+                onSaveMusicRelease={handleSaveMusicRelease}
+                onDeleteMusicRelease={handleDeleteMusicRelease}
               />
             }
           />
@@ -1909,6 +2151,6 @@ export default function App() {
         onClose={() => setCreateSongOpen(false)}
         onCreate={handleCreateSong}
       />
-    </PlayerProvider>
+    </Suspense>
   );
 }

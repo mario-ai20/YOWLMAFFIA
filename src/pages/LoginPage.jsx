@@ -1,6 +1,7 @@
 import { ArrowLeft, KeyRound, LockKeyhole, LogIn, MailCheck, RefreshCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import BrandMark from '../components/BrandMark';
+import InfoNoticeCard from '../components/InfoNoticeCard';
 import UpdateNoticeCard from '../components/UpdateNoticeCard';
 
 export default function LoginPage({
@@ -149,7 +150,7 @@ export default function LoginPage({
                 ? 'We sturen een eenmalige code naar je mailbox. Die moet je invullen voordat je de app mag openen.'
                 : isRecoveryStage
                   ? 'Kies een nieuw wachtwoord voor je YOWLMAFFIA-account.'
-                  : 'Werk samen aan songs, lyrics en tracks in één online omgeving.'}
+                  : 'Werk samen aan songs, lyrics en tracks in ??n online omgeving.'}
             </p>
             <p className="login-form__lead">
               {isOtpStage
@@ -160,6 +161,7 @@ export default function LoginPage({
             </p>
           </div>
 
+          <InfoNoticeCard compact className="login-page__info" />
           <UpdateNoticeCard compact className="login-page__update" />
 
           {!isOtpStage && !isRecoveryStage ? (
@@ -182,7 +184,7 @@ export default function LoginPage({
                   className="input"
                   name="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="????????"
                   autoComplete="current-password"
                   required
                 />

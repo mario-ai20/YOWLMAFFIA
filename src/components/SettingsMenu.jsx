@@ -14,7 +14,10 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate, subscribeToUpdateState } from '../utils/updates';
+import { getInfoState, subscribeToInfoState } from '../utils/infoNotice';
 import { normalizeUsername } from '../utils/users';
+import { suggestNextVersion } from '../utils/version';
+import InfoNoticeCard from './InfoNoticeCard';
 import UpdateNoticeCard from './UpdateNoticeCard';
 import UserAvatar from './UserAvatar';
 
@@ -47,6 +50,7 @@ export default function SettingsMenu({
   onAvatarUpload,
   onAvatarDelete,
   onEmailChange,
+  onPublishInfo,
   onPublishUpdate
 }) {
   const [open, setOpen] = useState(false);
@@ -65,6 +69,11 @@ export default function SettingsMenu({
   const [updateState, setUpdateState] = useState(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
+  const [infoTitle, setInfoTitle] = useState('');
+  const [infoBody, setInfoBody] = useState('');
+  const [infoActive, setInfoActive] = useState(true);
+  const [infoBusy, setInfoBusy] = useState(false);
+  const [infoMessage, setInfoMessage] = useState('');
   const [releaseVersion, setReleaseVersion] = useState('');
   const [releaseNotes, setReleaseNotes] = useState('');
   const [releaseDownloadUrl, setReleaseDownloadUrl] = useState('');
@@ -76,6 +85,7 @@ export default function SettingsMenu({
   const avatarInputRef = useRef(null);
   const releaseInputRef = useRef(null);
   const canPublishUpdates = normalizeUsername(user?.username) === 'mattiz';
+  const canPublishInfo = normalizeUsername(user?.username) === 'mattiz' && typeof onPublishInfo === 'function';
 
   useEffect(() => {
     setThemeDraft(themeMode);
@@ -114,7 +124,7 @@ export default function SettingsMenu({
       return;
     }
 
-    setReleaseVersion(String(updateState.currentVersion || '').trim());
+    setReleaseVersion(suggestNextVersion(updateState.currentVersion));
   }, [open, releaseVersion, updateState?.currentVersion]);
 
   useEffect(() => {
@@ -156,6 +166,34 @@ export default function SettingsMenu({
       if (!cancelled) {
         setUpdateState(nextState);
         setUpdateMessage(nextState?.message || '');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrapInfoState() {
+      const initial = await getInfoState();
+      if (!cancelled && initial) {
+        setInfoTitle(initial.title || '');
+        setInfoBody(initial.body || '');
+        setInfoActive(Boolean(initial.isActive));
+      }
+    }
+
+    bootstrapInfoState();
+
+    const unsubscribe = subscribeToInfoState((nextState) => {
+      if (!cancelled && nextState) {
+        setInfoTitle(nextState.title || '');
+        setInfoBody(nextState.body || '');
+        setInfoActive(Boolean(nextState.isActive));
       }
     });
 
@@ -332,6 +370,35 @@ export default function SettingsMenu({
     }
   }
 
+  async function handlePublishInfo(event) {
+    event.preventDefault();
+
+    if (!canPublishInfo || infoBusy) {
+      return;
+    }
+
+    setInfoBusy(true);
+    setInfoMessage('');
+
+    try {
+      const result = await onPublishInfo?.({
+        title: infoTitle,
+        body: infoBody,
+        isActive: infoActive
+      });
+
+      setInfoMessage(result?.message || 'Info gepubliceerd.');
+    } catch (error) {
+      setInfoMessage(
+        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
+          ? String(error.message || error.error_description)
+          : 'Publiceren mislukt.'
+      );
+    } finally {
+      setInfoBusy(false);
+    }
+  }
+
   function handleChooseAvatar() {
     if (avatarInputRef.current) {
       avatarInputRef.current.value = '';
@@ -381,9 +448,11 @@ export default function SettingsMenu({
               <div className="settings-menu__header">
                 <div className="settings-menu__identity">
                   <UserAvatar user={user} name={user?.displayName || user?.username} src={avatarPreview || user?.avatar_url} size={58} />
-                  <span className="eyebrow">Persoonlijk</span>
-                  <strong>{user?.displayName || user?.username || 'Onbekend'}</strong>
-                  <p>{user?.email || 'Geen e-mail gekoppeld'}</p>
+                  <div className="settings-menu__identity-copy">
+                    <span className="eyebrow">Persoonlijk</span>
+                    <strong>{user?.displayName || user?.username || 'Onbekend'}</strong>
+                    <p>{user?.email || 'Geen e-mail gekoppeld'}</p>
+                  </div>
                 </div>
                 <div className="settings-menu__status">
                   {statusMessage || bio || 'Beschikbaar'}
@@ -419,6 +488,55 @@ export default function SettingsMenu({
               </div>
 
               <div className="settings-menu__body">
+                <div className="settings-menu__group">
+                  <span className="settings-menu__label">Info</span>
+                  <InfoNoticeCard compact showActions={false} className="settings-menu__info" />
+
+                  {canPublishInfo ? (
+                    <form className="settings-menu__publish" onSubmit={handlePublishInfo}>
+                      <label className="field settings-menu__field">
+                        <span>Titel</span>
+                        <input
+                          className="input"
+                          value={infoTitle}
+                          onChange={(event) => setInfoTitle(event.target.value)}
+                          placeholder="Bijvoorbeeld: Nieuwe crew-info"
+                        />
+                      </label>
+
+                      <label className="field settings-menu__field">
+                        <span>Bericht</span>
+                        <textarea
+                          className="input settings-menu__textarea"
+                          value={infoBody}
+                          onChange={(event) => setInfoBody(event.target.value)}
+                          placeholder="Schrijf hier wat de crew moet zien op login en dashboard..."
+                        />
+                      </label>
+
+                      <label className="settings-menu__toggle settings-menu__toggle--full">
+                        <input
+                          type="checkbox"
+                          checked={infoActive}
+                          onChange={(event) => setInfoActive(event.target.checked)}
+                        />
+                        <span>Toon info op login en dashboard</span>
+                      </label>
+
+                      <button className="button button--primary button--full" type="submit" disabled={infoBusy}>
+                        <PencilLine size={16} />
+                        {infoBusy ? 'Opslaan...' : 'Info opslaan'}
+                      </button>
+
+                      {infoMessage ? <p className="settings-menu__message">{infoMessage}</p> : null}
+                    </form>
+                  ) : (
+                    <p className="settings-menu__hint">
+                      Alleen Mattiz kan deze info beheren. Wat hier staat verschijnt exact hetzelfde op het login-scherm en in het dashboard.
+                    </p>
+                  )}
+                </div>
+
                 <div className="settings-menu__group">
                   <span className="settings-menu__label">Account</span>
                   <div className="settings-menu__upload">
@@ -553,15 +671,18 @@ export default function SettingsMenu({
                     <form className="settings-menu__publish" onSubmit={handlePublishRelease}>
                       <span className="settings-menu__label">Publiceer update</span>
 
-                      <label className="field settings-menu__field">
-                        <span>Versie</span>
-                        <input
-                          className="input"
-                          value={releaseVersion}
-                          onChange={(event) => setReleaseVersion(event.target.value)}
-                          placeholder="Bijvoorbeeld 1.0.1"
-                        />
-                      </label>
+                        <label className="field settings-menu__field">
+                          <span>Versie</span>
+                          <input
+                            className="input"
+                            value={releaseVersion}
+                            onChange={(event) => setReleaseVersion(event.target.value)}
+                            placeholder="Bijvoorbeeld 2.0.1"
+                          />
+                          <small className="settings-menu__hint">
+                            Aanbevolen nieuwe versie: {suggestNextVersion(updateState?.currentVersion)}
+                          </small>
+                        </label>
 
                       <label className="field settings-menu__field">
                         <span>Opmerking</span>

@@ -175,10 +175,42 @@ grant select on table public.app_update_releases to anon;
 grant select on table public.app_update_releases to authenticated;
 grant insert, update, delete on table public.app_update_releases to authenticated;
 
+create table if not exists public.app_info_blocks (
+  id text primary key default 'current',
+  title text not null default '',
+  body text not null default '',
+  is_active boolean not null default true,
+  published_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+grant select on table public.app_info_blocks to anon;
+grant select on table public.app_info_blocks to authenticated;
+grant insert, update, delete on table public.app_info_blocks to authenticated;
+
+create table if not exists public.music_releases (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  artist_name text not null default 'YOWLMAFFIA',
+  spotify_url text not null,
+  cover_url text not null default '',
+  cover_storage_path text not null default '',
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+grant select on table public.music_releases to anon;
+grant select on table public.music_releases to authenticated;
+grant insert, update, delete on table public.music_releases to authenticated;
+
 alter table public.songs enable row level security;
 alter table public.messages enable row level security;
 alter table public.notifications enable row level security;
 alter table public.app_update_releases enable row level security;
+alter table public.app_info_blocks enable row level security;
+alter table public.music_releases enable row level security;
 
 drop policy if exists "Authenticated users can read songs" on public.songs;
 create policy "Authenticated users can read songs"
@@ -308,6 +340,64 @@ create policy "Mattiz can delete app update releases"
   to authenticated
   using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
 
+drop policy if exists "Anyone can read app info blocks" on public.app_info_blocks;
+create policy "Anyone can read app info blocks"
+  on public.app_info_blocks
+  for select
+  to public
+  using (true);
+
+drop policy if exists "Mattiz can publish app info blocks" on public.app_info_blocks;
+create policy "Mattiz can publish app info blocks"
+  on public.app_info_blocks
+  for insert
+  to authenticated
+  with check (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+drop policy if exists "Mattiz can update app info blocks" on public.app_info_blocks;
+create policy "Mattiz can update app info blocks"
+  on public.app_info_blocks
+  for update
+  to authenticated
+  using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz')
+  with check (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+drop policy if exists "Mattiz can delete app info blocks" on public.app_info_blocks;
+create policy "Mattiz can delete app info blocks"
+  on public.app_info_blocks
+  for delete
+  to authenticated
+  using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+drop policy if exists "Anyone can read music releases" on public.music_releases;
+create policy "Anyone can read music releases"
+  on public.music_releases
+  for select
+  to public
+  using (true);
+
+drop policy if exists "Mattiz can publish music releases" on public.music_releases;
+create policy "Mattiz can publish music releases"
+  on public.music_releases
+  for insert
+  to authenticated
+  with check (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+drop policy if exists "Mattiz can update music releases" on public.music_releases;
+create policy "Mattiz can update music releases"
+  on public.music_releases
+  for update
+  to authenticated
+  using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz')
+  with check (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+drop policy if exists "Mattiz can delete music releases" on public.music_releases;
+create policy "Mattiz can delete music releases"
+  on public.music_releases
+  for delete
+  to authenticated
+  using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
 do $$ 
 begin
   alter publication supabase_realtime add table public.allowed_users;
@@ -330,6 +420,20 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.app_update_releases;
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.app_info_blocks;
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.music_releases;
 exception
   when duplicate_object then null;
 end $$;

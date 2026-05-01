@@ -1,6 +1,6 @@
 {
   "name": "yowlmaffia",
-  "version": "2.0.0",
+  "version": "2.0.3",
   "private": true,
   "description": "YOWLMAFFIA writers portal desktop app",
   "author": "Mattiz Hoornaert",
@@ -9,7 +9,8 @@
     "dev": "node scripts/dev.mjs",
     "icons:generate": "node scripts/generate-icons.mjs",
     "build:renderer": "vite build",
-    "build": "npm run icons:generate && npm run build:renderer && electron-builder",
+    "build": "npm run icons:generate && npm run build:renderer && set NODE_OPTIONS=--no-deprecation && electron-builder",
+    "postinstall": "node scripts/patch-electron-builder.mjs",
     "start": "electron .",
     "lint": "eslint ."
   },
@@ -21,7 +22,7 @@
     "lucide-react": "^0.536.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.6.3"
+    "react-router": "^7.14.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",

@@ -1,15 +1,14 @@
-import { Bell, CheckCheck, Clock3, Plus, RefreshCw, Sparkles } from 'lucide-react';
+import { Bell, CheckCheck, Clock3, Music2, Plus, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Music2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import SongCard from '../components/SongCard';
+import InfoNoticeCard from '../components/InfoNoticeCard';
 import UpdateNoticeCard from '../components/UpdateNoticeCard';
-import TrackBrowser from '../components/TrackBrowser';
-import { usePlayer } from '../components/PlayerProvider';
+import MusicReleaseCard from '../components/MusicReleaseCard';
 import UserAvatar from '../components/UserAvatar';
 import { createDefaultCoverDataUrl } from '../utils/defaultCover';
 import { formatRelativeTime } from '../utils/dates';
+import { createSpotifySearchUrl, getDemoMusicReleases } from '../utils/musicReleases';
 import { normalizeUsername } from '../utils/users';
-import { getDemoLibrary } from '../utils/demoMedia';
 
 function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick, showTimestamp = true }) {
   return (
@@ -31,50 +30,13 @@ function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick,
   );
 }
 
-function DashboardMusicStrip() {
-  const { currentTrack, isPlaying, togglePlay, goToNextTrack, goToPreviousTrack } = usePlayer();
-
-  if (!currentTrack) {
-    return (
-      <div className="dashboard-music__now-playing dashboard-music__now-playing--empty">
-        <strong>Geen track geselecteerd</strong>
-        <span>Klik op een track om muziek af te spelen.</span>
-      </div>
-    );
-  }
-
-  const coverUrl = currentTrack.coverUrl || createDefaultCoverDataUrl(currentTrack.title || 'Audio', 'track');
-
-  return (
-    <div className="dashboard-music__now-playing">
-      <img className="dashboard-music__cover" src={coverUrl} alt={currentTrack.title} />
-      <div className="dashboard-music__copy">
-        <span className="eyebrow">Nu aan het spelen</span>
-        <strong>{currentTrack.title}</strong>
-        <p>{currentTrack.name}</p>
-      </div>
-      <div className="dashboard-music__transport">
-        <button className="icon-button icon-button--small" type="button" onClick={goToPreviousTrack} aria-label="Vorige">
-          <SkipBack size={16} />
-        </button>
-        <button className="play-button button--small" type="button" onClick={togglePlay} aria-label={isPlaying ? 'Pauze' : 'Speel af'}>
-          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-        </button>
-        <button className="icon-button icon-button--small" type="button" onClick={goToNextTrack} aria-label="Volgende">
-          <SkipForward size={16} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardPage({
   currentUser,
   songs = [],
   loading = false,
   allowedUsers = [],
-  tracks = [],
-  tracksLoading = false,
+  musicReleases = [],
+  musicReleasesLoading = false,
   notifications = [],
   notificationsLoading = false,
   activity = [],
@@ -86,32 +48,38 @@ export default function DashboardPage({
   onOpenNotification,
   onClearNotifications,
   onSendAnnouncement,
-  onUploadTrack,
-  onRefreshTracks
+  onUploadAsset,
+  onRefreshMusicReleases,
+  onSaveMusicRelease,
+  onDeleteMusicRelease
 }) {
-  const fileInputRef = useRef(null);
-  const { playFromQueue, currentTrack } = usePlayer();
+  const coverInputRef = useRef(null);
   const [announcementRecipient, setAnnouncementRecipient] = useState('team');
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
   const [announcementLink, setAnnouncementLink] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementBusy, setAnnouncementBusy] = useState(false);
+  const [musicTitle, setMusicTitle] = useState('');
+  const [musicArtist, setMusicArtist] = useState('');
+  const [musicSpotifyUrl, setMusicSpotifyUrl] = useState('');
+  const [musicCoverUrl, setMusicCoverUrl] = useState('');
+  const [musicCoverStoragePath, setMusicCoverStoragePath] = useState('');
+  const [musicBusy, setMusicBusy] = useState(false);
+  const [musicMessage, setMusicMessage] = useState('');
   const [nowTick, setNowTick] = useState(() => Date.now());
+
   const unreadNotifications = notifications.filter((notification) => !notification.is_read);
   const isSongsPage = pageMode === 'songs';
   const canSendAnnouncements = normalizeUsername(currentUser?.username) === 'mattiz' && typeof onSendAnnouncement === 'function';
-  const canManageTracks = normalizeUsername(currentUser?.username) === 'mattiz' && typeof onUploadTrack === 'function';
-  const displayedTracks = useMemo(() => (tracks.length ? tracks : getDemoLibrary()), [tracks]);
-
-  async function handleTrackUpload(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-
-    if (file && canManageTracks) {
-      await onUploadTrack(file);
-    }
-  }
+  const canManageMusic =
+    normalizeUsername(currentUser?.username) === 'mattiz' &&
+    typeof onSaveMusicRelease === 'function' &&
+    typeof onDeleteMusicRelease === 'function';
+  const displayedMusicReleases = useMemo(
+    () => (musicReleases.length ? musicReleases : getDemoMusicReleases()),
+    [musicReleases]
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -148,6 +116,102 @@ export default function DashboardPage({
       setAnnouncementMessage(error instanceof Error ? error.message : 'Melding versturen mislukt.');
     } finally {
       setAnnouncementBusy(false);
+    }
+  }
+
+  async function handleMusicCoverUpload(event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file || !canManageMusic || typeof onUploadAsset !== 'function') {
+      return;
+    }
+
+    try {
+      setMusicMessage('');
+      const uploaded = await onUploadAsset(file, 'cover');
+      if (!uploaded?.url) {
+        throw new Error('Geen cover-URL ontvangen.');
+      }
+
+      setMusicCoverUrl(uploaded.url);
+      setMusicCoverStoragePath(uploaded.path || '');
+      setMusicMessage('Cover geüpload.');
+    } catch (error) {
+      setMusicMessage(error instanceof Error ? error.message : 'Cover upload mislukt.');
+    }
+  }
+
+  async function handleSaveMusicRelease(event) {
+    event.preventDefault();
+
+    if (!canManageMusic || musicBusy) {
+      return;
+    }
+
+    setMusicBusy(true);
+    setMusicMessage('');
+
+    try {
+      const title = musicTitle.trim();
+      const artistName = musicArtist.trim();
+      const spotifyUrl = musicSpotifyUrl.trim() || createSpotifySearchUrl(title, artistName);
+      const coverUrl = musicCoverUrl.trim();
+
+      if (!title) {
+        throw new Error('Geef eerst een titel op.');
+      }
+
+      const result = await onSaveMusicRelease({
+        title,
+        artistName,
+        spotifyUrl,
+        coverUrl,
+        coverStoragePath: musicCoverStoragePath
+      });
+
+      setMusicMessage(result?.message || 'Spotify-banner opgeslagen.');
+      setMusicTitle('');
+      setMusicArtist('');
+      setMusicSpotifyUrl('');
+      setMusicCoverUrl('');
+      setMusicCoverStoragePath('');
+
+      if (typeof onRefreshMusicReleases === 'function') {
+        await onRefreshMusicReleases();
+      }
+    } catch (error) {
+      setMusicMessage(error instanceof Error ? error.message : 'Spotify-banner opslaan mislukt.');
+    } finally {
+      setMusicBusy(false);
+    }
+  }
+
+  async function handleDeleteMusicRelease(release) {
+    if (!canManageMusic || !release) {
+      return;
+    }
+
+    if (!window.confirm(`Verwijder "${release.title}"?`)) {
+      return;
+    }
+
+    setMusicBusy(true);
+    setMusicMessage('');
+
+    try {
+      await onDeleteMusicRelease(release);
+      setMusicMessage('Spotify-banner verwijderd.');
+      setMusicCoverUrl('');
+      setMusicCoverStoragePath('');
+
+      if (typeof onRefreshMusicReleases === 'function') {
+        await onRefreshMusicReleases();
+      }
+    } catch (error) {
+      setMusicMessage(error instanceof Error ? error.message : 'Verwijderen mislukt.');
+    } finally {
+      setMusicBusy(false);
     }
   }
 
@@ -196,76 +260,120 @@ export default function DashboardPage({
             <p>Maak je eerste song aan met de knop rechtsboven.</p>
           </div>
         )}
+
+        {!isSongsPage ? (
+          <section className="panel dashboard-music">
+            <div className="panel__header">
+              <span className="eyebrow">Spotify</span>
+              <h2>
+                <Music2 size={16} />
+                Muziekbanners
+              </h2>
+
+              {typeof onRefreshMusicReleases === 'function' ? (
+                <button className="button button--ghost button--small" type="button" onClick={onRefreshMusicReleases}>
+                  <RefreshCw size={15} />
+                  Herladen
+                </button>
+              ) : null}
+            </div>
+
+            {canManageMusic ? (
+              <form className="dashboard-compose dashboard-compose--music" onSubmit={handleSaveMusicRelease}>
+                <div className="dashboard-compose__split">
+                  <label className="field dashboard-compose__field">
+                    <span>Titel</span>
+                    <input
+                      className="input"
+                      value={musicTitle}
+                      onChange={(event) => setMusicTitle(event.target.value)}
+                      placeholder="Bijvoorbeeld: VIERA D"
+                    />
+                  </label>
+
+                  <label className="field dashboard-compose__field">
+                    <span>Artiest</span>
+                    <input
+                      className="input"
+                      value={musicArtist}
+                      onChange={(event) => setMusicArtist(event.target.value)}
+                      placeholder="Bijvoorbeeld: YOWLMAFFIA"
+                    />
+                  </label>
+                </div>
+
+                <label className="field dashboard-compose__field">
+                  <span>Spotify-link</span>
+                  <input
+                    className="input"
+                    value={musicSpotifyUrl}
+                    onChange={(event) => setMusicSpotifyUrl(event.target.value)}
+                    placeholder="Plak hier de Spotify-link"
+                  />
+                </label>
+
+                <div className="dashboard-compose__cover-row">
+                  <div className="dashboard-compose__cover-preview">
+                    <img
+                      src={musicCoverUrl || createDefaultCoverDataUrl(musicTitle || 'Spotify', musicArtist || 'YOWLMAFFIA')}
+                      alt={musicTitle || 'Cover preview'}
+                    />
+                  </div>
+
+                  <div className="dashboard-compose__cover-copy">
+                    <p>Kies een cover voor de banner. Deze wordt zichtbaar als Spotify-kaart in de app.</p>
+
+                    <button
+                      className="button button--secondary button--small"
+                      type="button"
+                      onClick={() => coverInputRef.current?.click()}
+                    >
+                      <Upload size={15} />
+                      Kies cover
+                    </button>
+
+                    <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={handleMusicCoverUpload} />
+                  </div>
+                </div>
+
+                <button className="button button--primary button--full" type="submit" disabled={musicBusy}>
+                  {musicBusy ? 'Opslaan...' : 'Spotify-banner opslaan'}
+                </button>
+
+                {musicMessage ? <p className="settings-menu__message">{musicMessage}</p> : null}
+              </form>
+            ) : null}
+
+            {musicReleasesLoading ? (
+              <div className="empty-state empty-state--compact">
+                <strong>Releases laden...</strong>
+                <p>We halen de Spotify-banners uit Supabase.</p>
+              </div>
+            ) : displayedMusicReleases.length ? (
+              <div className="music-release-grid">
+                {displayedMusicReleases.map((release) => (
+                  <MusicReleaseCard
+                    key={release.id}
+                    release={release}
+                    canManage={canManageMusic}
+                    onDelete={handleDeleteMusicRelease}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state empty-state--compact">
+                <strong>Nog geen muziekbanners</strong>
+                <p>Mattiz kan hier een titel, cover en Spotify-link toevoegen.</p>
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
 
       {!isSongsPage ? (
         <aside className="dashboard-page__sidebar">
+          <InfoNoticeCard compact className="dashboard-info" />
           <UpdateNoticeCard compact className="dashboard-update" />
-
-          <section className="panel dashboard-music">
-            <div className="panel__header">
-              <span className="eyebrow">Muziek</span>
-              <h2>
-                <Music2 size={16} />
-                Tracks afspelen
-              </h2>
-
-              <div className="dashboard-music__actions">
-                {typeof onRefreshTracks === 'function' ? (
-                  <button className="button button--secondary button--small" type="button" onClick={onRefreshTracks}>
-                    <RefreshCw size={15} />
-                    Herladen
-                  </button>
-                ) : null}
-                {canManageTracks ? (
-                  <button className="button button--primary button--small" type="button" onClick={() => fileInputRef.current?.click()}>
-                    <Upload size={15} />
-                    Upload track
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {canManageTracks ? (
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,video/mp4"
-                hidden
-                onChange={handleTrackUpload}
-              />
-            ) : null}
-
-            <div className="dashboard-music__hint">Klik op een track om hem af te spelen.</div>
-
-            {tracksLoading ? (
-              <div className="empty-state empty-state--compact">
-                <strong>Tracks laden...</strong>
-                <p>We lezen de audio-bibliotheek in.</p>
-              </div>
-            ) : displayedTracks.length ? (
-              <div className="dashboard-music__browser">
-                <TrackBrowser
-                  tracks={displayedTracks}
-                  activeTrackId={currentTrack?.id || null}
-                  onPlay={(track) => {
-                    const queue = displayedTracks;
-                    const index = queue.findIndex((item) => item.id === track.id);
-                    if (index >= 0) {
-                      playFromQueue(queue, index, true);
-                    }
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="empty-state empty-state--compact">
-                <strong>Nog geen tracks</strong>
-                <p>Mattiz kan hier een audio-bestand uploaden.</p>
-              </div>
-            )}
-
-            <DashboardMusicStrip />
-          </section>
 
           {canSendAnnouncements ? (
             <section className="panel dashboard-compose">
