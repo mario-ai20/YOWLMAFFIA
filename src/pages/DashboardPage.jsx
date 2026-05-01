@@ -359,7 +359,7 @@ export default function DashboardPage({
                   <MusicReleaseCard
                     key={release.id}
                     release={release}
-                    canManage={canManageMusic}
+                    canManage={canManageMusic && !release.isDemo}
                     onDelete={handleDeleteMusicRelease}
                   />
                 ))}

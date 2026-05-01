@@ -23,6 +23,7 @@ export function normalizeMusicRelease(record = {}) {
     spotifyUrl,
     coverUrl,
     coverStoragePath,
+    isDemo: Boolean(record.isDemo || record.is_demo),
     sortOrder: Number(record.sort_order || 0),
     createdAt: record.created_at || new Date().toISOString(),
     updatedAt: record.updated_at || record.created_at || new Date().toISOString()
@@ -47,7 +48,7 @@ export const DEMO_MUSIC_RELEASES = [
 ];
 
 export function getDemoMusicReleases() {
-  return DEMO_MUSIC_RELEASES.map((release) => normalizeMusicRelease(release));
+  return DEMO_MUSIC_RELEASES.map((release) => normalizeMusicRelease({ ...release, isDemo: true }));
 }
 
 export async function loadMusicReleases(supabase) {
