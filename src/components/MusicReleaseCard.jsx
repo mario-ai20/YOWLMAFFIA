@@ -44,7 +44,13 @@ export default function MusicReleaseCard({ release, onDelete, canManage = false 
         </button>
 
         {canManage && typeof onDelete === 'function' ? (
-          <button className="button button--ghost button--small" type="button" onClick={() => onDelete(release)}>
+          <button
+            className="button button--ghost button--small music-release-card__delete"
+            type="button"
+            onClick={() => onDelete(release)}
+            aria-label={`Verwijder ${release.title}`}
+            title="Verwijder banner"
+          >
             <Trash2 size={16} />
             Wis
           </button>

@@ -263,7 +263,7 @@ export default function DashboardPage({
 
         {!isSongsPage ? (
           <section className="panel dashboard-music">
-            <div className="panel__header">
+            <div className="panel__header panel__header--compact">
               <span className="eyebrow">Spotify</span>
               <h2>
                 <Music2 size={16} />
@@ -279,7 +279,7 @@ export default function DashboardPage({
             </div>
 
             {canManageMusic ? (
-              <form className="dashboard-compose dashboard-compose--music" onSubmit={handleSaveMusicRelease}>
+              <form className="dashboard-compose dashboard-compose--music dashboard-compose--music-tight" onSubmit={handleSaveMusicRelease}>
                 <div className="dashboard-compose__split">
                   <label className="field dashboard-compose__field">
                     <span>Titel</span>
@@ -350,7 +350,7 @@ export default function DashboardPage({
                 <p>We halen de Spotify-banners uit Supabase.</p>
               </div>
             ) : displayedMusicReleases.length ? (
-              <div className="music-release-grid">
+              <div className="music-release-grid music-release-grid--compact">
                 {displayedMusicReleases.map((release) => (
                   <MusicReleaseCard
                     key={release.id}
