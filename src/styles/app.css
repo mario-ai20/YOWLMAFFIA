@@ -691,8 +691,25 @@ a {
 
 .app-shell__user {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.8rem;
+  min-width: 0;
+}
+
+.app-shell__clock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--border);
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .user-chip {
@@ -2590,6 +2607,11 @@ a {
   .app-shell__user {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .app-shell__clock {
+    width: fit-content;
+    justify-self: start;
   }
 
   .page-title,

@@ -37,7 +37,19 @@ export default function AppShell({
 }) {
   const [appVersion, setAppVersion] = useState('dev');
   const [themeMode, setThemeMode] = useState('system');
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const storageKey = useMemo(() => getPreferenceStorageKey(user?.username), [user?.username]);
+
+  const headerDateTime = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat('nl-BE', {
+        dateStyle: 'medium',
+        timeStyle: 'medium'
+      }).format(new Date(nowTick));
+    } catch {
+      return new Date(nowTick).toLocaleString('nl-BE');
+    }
+  }, [nowTick]);
 
   useEffect(() => {
     let mounted = true;
@@ -118,6 +130,14 @@ export default function AppShell({
     window.localStorage.setItem(storageKey, JSON.stringify({ themeMode }));
   }, [storageKey, themeMode]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
     <div className="app-shell">
       <header className="app-shell__header">
@@ -139,6 +159,10 @@ export default function AppShell({
         </nav>
 
         <div className="app-shell__user">
+          <div className="app-shell__clock" aria-label={`Huidige datum en tijd: ${headerDateTime}`}>
+            <span>{headerDateTime}</span>
+          </div>
+
           <div className="app-shell__status">
             <div className="app-shell__notifications" aria-live="polite">
               <Bell size={15} />
