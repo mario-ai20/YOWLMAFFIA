@@ -262,12 +262,6 @@ export default function DashboardPage({
         )}
 
         {!isSongsPage ? (
-          <div className="dashboard-section-break" aria-hidden="true">
-            <span>Spotify</span>
-          </div>
-        ) : null}
-
-        {!isSongsPage ? (
           <section className="panel dashboard-music">
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Spotify</span>

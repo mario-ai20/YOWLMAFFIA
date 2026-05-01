@@ -1171,34 +1171,6 @@ a {
   gap: 0.85rem;
 }
 
-.dashboard-section-break {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  margin: 0.9rem 0 0.3rem;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.dashboard-section-break::before,
-.dashboard-section-break::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border) 88%, transparent), transparent);
-}
-
-.dashboard-section-break span {
-  white-space: nowrap;
-  padding: 0.28rem 0.7rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-bg) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-}
-
 .dashboard-music__separator {
   display: flex;
   align-items: center;
