@@ -7,7 +7,7 @@ import MusicReleaseCard from '../components/MusicReleaseCard';
 import UserAvatar from '../components/UserAvatar';
 import { createDefaultCoverDataUrl } from '../utils/defaultCover';
 import { formatRelativeTime } from '../utils/dates';
-import { createSpotifySearchUrl, getDemoMusicReleases } from '../utils/musicReleases';
+import { createSpotifySearchUrl } from '../utils/musicReleases';
 import { normalizeUsername } from '../utils/users';
 
 function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick, showTimestamp = true }) {
@@ -77,7 +77,7 @@ export default function DashboardPage({
     typeof onSaveMusicRelease === 'function' &&
     typeof onDeleteMusicRelease === 'function';
   const displayedMusicReleases = useMemo(
-    () => (musicReleases.length ? musicReleases : getDemoMusicReleases()),
+    () => musicReleases,
     [musicReleases]
   );
 
@@ -359,7 +359,7 @@ export default function DashboardPage({
                   <MusicReleaseCard
                     key={release.id}
                     release={release}
-                    canManage={canManageMusic && !release.isDemo}
+                    canManage={canManageMusic}
                     onDelete={handleDeleteMusicRelease}
                   />
                 ))}
