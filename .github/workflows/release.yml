@@ -40,6 +40,34 @@ jobs:
           generate_release_notes: true
           files: |
             release/YOWLMAFFIA.exe
+            release/latest.yml
             release/YOWLMAFFIA.exe.blockmap
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync release to Supabase
+        if: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        shell: pwsh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_PAGE: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          $headers = @{
+            apikey = $env:SUPABASE_SERVICE_ROLE_KEY
+            Authorization = "Bearer $env:SUPABASE_SERVICE_ROLE_KEY"
+            'Content-Type' = 'application/json'
+            Prefer = 'resolution=merge-duplicates,return=representation'
+          }
+
+          $body = @{
+            version = $version
+            download_url = $env:RELEASE_PAGE
+            notes = 'Nieuwe YOWLMAFFIA-release via GitHub Releases.'
+            is_required = $false
+            published_at = (Get-Date).ToString('o')
+          } | ConvertTo-Json -Depth 4
+
+          Invoke-RestMethod -Method Post -Uri "$($env:SUPABASE_URL)/rest/v1/app_update_releases?on_conflict=version" -Headers $headers -Body $body | Out-Null

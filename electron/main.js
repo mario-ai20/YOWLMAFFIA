@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs/promises');
@@ -19,6 +20,7 @@ app.setName('YOWLMAFFIA');
 app.setAppUserModelId('com.yowlmaffia.portal');
 
 let mainWindow = null;
+let autoUpdaterConfigured = false;
 let updateState = {
   status: isDev ? 'dev' : 'idle',
   currentVersion: app.getVersion(),
@@ -54,6 +56,99 @@ function sendUpdateState() {
 function setUpdateState(patch) {
   updateState = { ...updateState, ...patch };
   sendUpdateState();
+}
+
+function configureAutoUpdater() {
+  if (autoUpdaterConfigured || !app.isPackaged) {
+    return;
+  }
+
+  autoUpdaterConfigured = true;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoRunAppAfterInstall = true;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.logger = console;
+
+  autoUpdater.on('checking-for-update', () => {
+    setUpdateState({
+      status: 'checking',
+      currentVersion: app.getVersion(),
+      latestVersion: updateState.latestVersion || app.getVersion(),
+      message: 'Controleren op GitHub Releases...'
+    });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    const latestVersion = String(info?.version || app.getVersion()).trim();
+    setUpdateState({
+      status: 'available',
+      currentVersion: app.getVersion(),
+      latestVersion,
+      progress: 0,
+      filePath: '',
+      message: `Nieuwe update beschikbaar: versie ${latestVersion}.`
+    });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    const percentage = Math.max(0, Math.min(100, Math.round(Number(progress?.percent || 0))));
+    setUpdateState({
+      status: 'downloading',
+      progress: percentage,
+      message: `Update wordt gedownload... ${percentage}%`
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    const latestVersion = String(info?.version || updateState.latestVersion || app.getVersion()).trim();
+    setUpdateState({
+      status: 'ready',
+      currentVersion: app.getVersion(),
+      latestVersion,
+      progress: 100,
+      message: 'Update is klaar om te installeren.'
+    });
+
+    if (updateState.isRequired) {
+      setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) {
+          return;
+        }
+
+        setUpdateState({
+          status: 'installing',
+          message: 'Verplichte update wordt nu geïnstalleerd...'
+        });
+
+        try {
+          autoUpdater.quitAndInstall(false, true);
+        } catch (error) {
+          setUpdateState({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Automatische installatie mislukt.'
+          });
+        }
+      }, 1200);
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    setUpdateState({
+      status: 'up-to-date',
+      currentVersion: app.getVersion(),
+      latestVersion: app.getVersion(),
+      progress: 0,
+      message: 'Je gebruikt al de nieuwste versie.'
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    setUpdateState({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Updatecontrole via GitHub mislukt.'
+    });
+  });
 }
 
 function isGithubHost(hostname = '') {
@@ -193,13 +288,24 @@ async function checkForUpdates() {
     return updateState;
   }
 
+  configureAutoUpdater();
   setUpdateState({
-    status: 'idle',
+    status: 'checking',
     currentVersion: app.getVersion(),
     latestVersion: app.getVersion(),
-    message: 'Updates haal je nu via de app en Supabase op.'
+    message: 'Controleren op GitHub Releases...'
   });
-  return updateState;
+
+  try {
+    await autoUpdater.checkForUpdates();
+    return updateState;
+  } catch (error) {
+    setUpdateState({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Updatecontrole via GitHub mislukt.'
+    });
+    throw error;
+  }
 }
 
 async function downloadUpdate(payload = {}) {
@@ -208,8 +314,35 @@ async function downloadUpdate(payload = {}) {
   const notes = String(payload?.notes || updateState.notes || '').trim();
   const isRequired = Boolean(payload?.isRequired || updateState.isRequired);
 
-  if (!downloadUrl) {
-    throw new Error('Geen download-url ingesteld voor de update.');
+  if (!app.isPackaged) {
+    throw new Error('Updates zijn niet beschikbaar in development.');
+  }
+
+  configureAutoUpdater();
+
+  if (!downloadUrl || !isDirectDownloadUrl(downloadUrl)) {
+    setUpdateState({
+      status: 'downloading',
+      progress: 0,
+      currentVersion: app.getVersion(),
+      latestVersion,
+      notes,
+      downloadUrl,
+      isRequired,
+      message: 'Update wordt opgehaald van GitHub Releases...'
+    });
+
+    try {
+      await autoUpdater.checkForUpdates();
+      return updateState;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Download mislukt.';
+      setUpdateState({
+        status: 'error',
+        message
+      });
+      throw error;
+    }
   }
 
   setUpdateState({
@@ -252,27 +385,37 @@ async function downloadUpdate(payload = {}) {
 }
 
 async function installUpdate() {
-  if (!updateState.filePath) {
-    throw new Error('De update is nog niet gedownload.');
+  if (updateState.filePath) {
+    await fs.access(updateState.filePath);
+    setUpdateState({
+      status: 'installing',
+      message: 'Installer wordt gestart...'
+    });
+
+    const child = spawn(updateState.filePath, [], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+    child.unref();
+
+    setTimeout(() => {
+      app.quit();
+    }, 500);
+
+    return { ok: true };
   }
 
-  await fs.access(updateState.filePath);
+  if (!app.isPackaged) {
+    throw new Error('Updates zijn niet beschikbaar in development.');
+  }
+
+  configureAutoUpdater();
   setUpdateState({
     status: 'installing',
-    message: 'Installer wordt gestart...'
+    message: 'Update wordt geïnstalleerd...'
   });
-
-  const child = spawn(updateState.filePath, [], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true
-  });
-  child.unref();
-
-  setTimeout(() => {
-    app.quit();
-  }, 500);
-
+  autoUpdater.quitAndInstall(false, true);
   return { ok: true };
 }
 
@@ -509,6 +652,16 @@ ipcMain.handle('yowl:import', async () => {
 
 app.whenReady().then(async () => {
   await createWindow();
+
+  if (app.isPackaged) {
+    configureAutoUpdater();
+    void checkForUpdates().catch((error) => {
+      setUpdateState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Updatecontrole via GitHub mislukt.'
+      });
+    });
+  }
 });
 
 app.on('activate', async () => {

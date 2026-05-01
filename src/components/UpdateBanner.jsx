@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw, Rocket, Upload } from 'lucide-react';
 import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate, subscribeToUpdateState } from '../utils/updates';
 
-const visibleStatuses = new Set(['available', 'downloading', 'ready', 'installing', 'error']);
+const visibleStatuses = new Set(['available', 'checking', 'downloading', 'ready', 'installing', 'error']);
 
 function formatVersion(version) {
   return version ? `v${version}` : '';
@@ -46,6 +46,10 @@ export default function UpdateBanner({
   const title = useMemo(() => {
     if (status === 'downloading') {
       return 'Update wordt gedownload';
+    }
+
+    if (status === 'checking') {
+      return 'Controleren...';
     }
 
     if (status === 'ready') {

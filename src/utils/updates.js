@@ -91,8 +91,8 @@ function normalizeLatestRelease(release = null, currentVersion = 'dev') {
   const publishedAt = String(release?.published_at || release?.created_at || '').trim();
   const isRequired = Boolean(release?.is_required);
 
-  if (!latestVersion || !downloadUrl) {
-    throw new Error('De update-release mist version of download_url.');
+  if (!latestVersion) {
+    throw new Error('De update-release mist een versie.');
   }
 
   if (compareVersions(latestVersion, currentVersion) <= 0) {
@@ -208,7 +208,20 @@ export async function getUpdateState() {
 
 export async function checkForUpdates() {
   try {
-    return await refreshLatestRelease();
+    const latest = await refreshLatestRelease();
+
+    if (window.desktop?.checkForUpdates) {
+      try {
+        await window.desktop.checkForUpdates();
+      } catch (error) {
+        setUpdateState({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Updatecontrole mislukt.'
+        });
+      }
+    }
+
+    return latest;
   } catch (error) {
     return setUpdateState({
       status: 'error',
@@ -218,10 +231,6 @@ export async function checkForUpdates() {
 }
 
 export async function downloadUpdate() {
-  if (!updateState.downloadUrl) {
-    throw new Error('Geen download-url ingesteld voor de update.');
-  }
-
   if (!window.desktop?.downloadUpdate) {
     throw new Error('De desktop bestandslaag is niet beschikbaar.');
   }

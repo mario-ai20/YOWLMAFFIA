@@ -523,6 +523,55 @@ exception
   when duplicate_object then null;
 end $$;
 
+create or replace function public.notify_app_update_release()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  release_link text := nullif(trim(coalesce(new.download_url, '')), '');
+  release_notes text := nullif(trim(coalesce(new.notes, '')),'');
+  release_version text := nullif(trim(coalesce(new.version, '')),'');
+begin
+  insert into public.notifications (
+    recipient_username,
+    recipient_email,
+    actor_username,
+    kind,
+    title,
+    body,
+    link,
+    metadata
+  )
+  select
+    u.username,
+    u.email,
+    'Mattiz',
+    'app_update',
+    format('Nieuwe update: versie %s', coalesce(release_version, 'onbekend')),
+    coalesce(release_notes, 'Er staat een nieuwe YOWLMAFFIA-update klaar.'),
+    release_link,
+    jsonb_build_object(
+      'release_id', new.id,
+      'version', new.version,
+      'download_url', new.download_url,
+      'is_required', new.is_required,
+      'published_at', new.published_at,
+      'created_at', new.created_at
+    )
+  from public.allowed_users u;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists app_update_releases_notify on public.app_update_releases;
+create trigger app_update_releases_notify
+after insert on public.app_update_releases
+for each row
+execute function public.notify_app_update_release();
+
 do $$
 begin
   alter publication supabase_realtime add table public.music_releases;

@@ -1,6 +1,6 @@
 {
   "name": "yowlmaffia",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "description": "YOWLMAFFIA writers portal desktop app",
   "author": "Mattiz Hoornaert",
@@ -19,6 +19,7 @@
     "@fontsource/space-grotesk": "^5.2.7",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.536.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -37,6 +38,13 @@
   "build": {
     "appId": "com.yowlmaffia.portal",
     "productName": "YOWLMAFFIA",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mario-ai20",
+        "repo": "YOWLMAFFIA"
+      }
+    ],
     "asar": true,
     "directories": {
       "output": "release"
