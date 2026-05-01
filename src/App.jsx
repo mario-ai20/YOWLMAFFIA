@@ -132,6 +132,20 @@ function isMissingMusicReleasesTableError(error) {
   );
 }
 
+function isMissingMusicReleaseRpcError(error, functionName) {
+  const message = String(error?.message || error?.error_description || error?.details || '').toLowerCase();
+  const normalizedFunctionName = String(functionName || '').toLowerCase();
+  return (
+    message.includes(`function public.${normalizedFunctionName}`) ||
+    message.includes(`public.${normalizedFunctionName}`) ||
+    message.includes(`function "${normalizedFunctionName}"`) ||
+    message.includes(`function ${normalizedFunctionName}`) ||
+    message.includes('could not find the function') ||
+    message.includes('schema cache') ||
+    message.includes('does not exist')
+  );
+}
+
 function buildActivityItems(songRows = [], messageRows = [], allowedUsers = []) {
   const songItems = (songRows || []).slice(0, 6).map((song) => ({
     id: 'song-' + song.id,
@@ -1763,7 +1777,10 @@ export default function App() {
       cover_storage_path: nextCoverStoragePath
     });
 
-    const { data, error } = await supabase.rpc('upsert_music_release', {
+    let data = null;
+    let error = null;
+
+    const rpcResult = await supabase.rpc('upsert_music_release', {
       p_id: nextRelease.id,
       p_title: nextRelease.title,
       p_artist_name: nextRelease.artistName,
@@ -1772,6 +1789,32 @@ export default function App() {
       p_cover_storage_path: nextCoverStoragePath,
       p_sort_order: nextRelease.sortOrder
     });
+
+    data = rpcResult.data;
+    error = rpcResult.error;
+
+    if (error && isMissingMusicReleaseRpcError(error, 'upsert_music_release')) {
+      const fallbackResult = await supabase
+        .from('music_releases')
+        .upsert(
+          {
+            id: nextRelease.id,
+            title: nextRelease.title,
+            artist_name: nextRelease.artistName,
+            spotify_url: nextRelease.spotifyUrl,
+            cover_url: nextRelease.coverUrl,
+            cover_storage_path: nextCoverStoragePath,
+            sort_order: nextRelease.sortOrder,
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'id' }
+        )
+        .select('*')
+        .maybeSingle();
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       if (isMissingMusicReleasesTableError(error)) {
@@ -1813,7 +1856,16 @@ export default function App() {
       }
     }
 
-    const { error } = await supabase.rpc('delete_music_release', { p_id: releaseId });
+    let error = null;
+
+    const rpcResult = await supabase.rpc('delete_music_release', { p_id: releaseId });
+    error = rpcResult.error;
+
+    if (error && isMissingMusicReleaseRpcError(error, 'delete_music_release')) {
+      const fallbackResult = await supabase.from('music_releases').delete().eq('id', releaseId);
+      error = fallbackResult.error;
+    }
+
     if (error) {
       throw error;
     }

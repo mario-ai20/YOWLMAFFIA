@@ -267,7 +267,7 @@ export default function DashboardPage({
               <span className="eyebrow">Spotify</span>
               <h2>
                 <Music2 size={16} />
-                Muziekbanners
+                Songs
               </h2>
 
               {typeof onRefreshMusicReleases === 'function' ? (
@@ -343,6 +343,10 @@ export default function DashboardPage({
                 {musicMessage ? <p className="settings-menu__message">{musicMessage}</p> : null}
               </form>
             ) : null}
+
+            <div className="dashboard-music__separator">
+              <span>Bestaande songs</span>
+            </div>
 
             {musicReleasesLoading ? (
               <div className="empty-state empty-state--compact">

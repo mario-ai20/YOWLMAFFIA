@@ -150,12 +150,14 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
 .panel__header h2 {
   margin: 0.2rem 0 0;
   font-size: 1.1rem;
+  min-width: 0;
 }
 
 .panel__footer {
@@ -1166,6 +1168,30 @@ a {
   padding: 1rem;
   display: grid;
   gap: 0.85rem;
+}
+
+.dashboard-music__separator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.15rem 0 0.05rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.dashboard-music__separator::before,
+.dashboard-music__separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border) 85%, transparent), transparent);
+}
+
+.dashboard-music__separator span {
+  white-space: nowrap;
 }
 
 .dashboard-music__actions {
