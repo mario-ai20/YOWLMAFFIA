@@ -1,9 +1,10 @@
-import { Bell, Library, LogOut, LayoutDashboard, MessagesSquare } from 'lucide-react';
+import { Bell, Library, LogOut, LayoutDashboard, MessagesSquare, ShieldEllipsis } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
 import { getAppVersion } from '../utils/yowl';
 import SettingsMenu from './SettingsMenu';
+import { normalizeUsername } from '../utils/users';
 import UserAvatar from './UserAvatar';
 
 function resolveThemeMode(mode) {
@@ -26,13 +27,12 @@ export default function AppShell({
   onAvatarUpload,
   onAvatarDelete,
   onEmailChange,
-  onPublishInfo,
-  onPublishUpdate,
   children
 }) {
   const [appVersion, setAppVersion] = useState('dev');
   const [themeMode, setThemeMode] = useState(user?.theme_mode || 'system');
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const isMattiz = normalizeUsername(user?.username) === 'mattiz';
 
   const headerDateTime = useMemo(() => {
     try {
@@ -115,6 +115,12 @@ export default function AppShell({
             <LayoutDashboard size={16} />
             Dashboard
           </NavLink>
+          {isMattiz ? (
+            <NavLink end to="/beheren" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
+              <ShieldEllipsis size={16} />
+              Beheren
+            </NavLink>
+          ) : null}
           <NavLink end to="/chat" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             <MessagesSquare size={16} />
             Chat
@@ -157,8 +163,6 @@ export default function AppShell({
                 onAvatarUpload={onAvatarUpload}
                 onAvatarDelete={onAvatarDelete}
                 onEmailChange={onEmailChange}
-                onPublishInfo={onPublishInfo}
-                onPublishUpdate={onPublishUpdate}
               />
 
               <button className="icon-text-button" type="button" onClick={onSignOut}>

@@ -1,24 +1,6 @@
-import {
-  Check,
-  CloudDownload,
-  Mail,
-  MonitorSmartphone,
-  MoonStar,
-  PencilLine,
-  RefreshCw,
-  Settings2,
-  SunMedium,
-  Upload,
-  Camera
-} from 'lucide-react';
+import { Check, Camera, Mail, MonitorSmartphone, MoonStar, PencilLine, Settings2, SunMedium } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate, subscribeToUpdateState } from '../utils/updates';
-import { getInfoState, subscribeToInfoState } from '../utils/infoNotice';
-import { normalizeUsername } from '../utils/users';
-import { suggestNextVersion } from '../utils/version';
-import InfoNoticeCard from './InfoNoticeCard';
-import UpdateNoticeCard from './UpdateNoticeCard';
 import UserAvatar from './UserAvatar';
 
 const THEME_OPTIONS = [
@@ -49,9 +31,7 @@ export default function SettingsMenu({
   onProfileSave,
   onAvatarUpload,
   onAvatarDelete,
-  onEmailChange,
-  onPublishInfo,
-  onPublishUpdate
+  onEmailChange
 }) {
   const [open, setOpen] = useState(false);
   const [themeDraft, setThemeDraft] = useState(themeMode);
@@ -66,26 +46,7 @@ export default function SettingsMenu({
   const [emailEditOpen, setEmailEditOpen] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMessage, setEmailMessage] = useState('');
-  const [updateState, setUpdateState] = useState(null);
-  const [updateBusy, setUpdateBusy] = useState(false);
-  const [updateMessage, setUpdateMessage] = useState('');
-  const [infoTitle, setInfoTitle] = useState('');
-  const [infoBody, setInfoBody] = useState('');
-  const [infoActive, setInfoActive] = useState(true);
-  const [infoBusy, setInfoBusy] = useState(false);
-  const [infoMessage, setInfoMessage] = useState('');
-  const [releaseVersion, setReleaseVersion] = useState('');
-  const [releaseNotes, setReleaseNotes] = useState('');
-  const [releaseDownloadUrl, setReleaseDownloadUrl] = useState('');
-  const [releaseFile, setReleaseFile] = useState(null);
-  const [releaseFileName, setReleaseFileName] = useState('');
-  const [releaseRequired, setReleaseRequired] = useState(false);
-  const [releaseBusy, setReleaseBusy] = useState(false);
-  const [releaseMessage, setReleaseMessage] = useState('');
   const avatarInputRef = useRef(null);
-  const releaseInputRef = useRef(null);
-  const canPublishUpdates = normalizeUsername(user?.username) === 'mattiz';
-  const canPublishInfo = normalizeUsername(user?.username) === 'mattiz' && typeof onPublishInfo === 'function';
 
   useEffect(() => {
     setThemeDraft(themeMode);
@@ -114,18 +75,8 @@ export default function SettingsMenu({
     const nextPreview = URL.createObjectURL(avatarFile);
     setAvatarPreview(nextPreview);
 
-    return () => {
-      URL.revokeObjectURL(nextPreview);
-    };
+    return () => URL.revokeObjectURL(nextPreview);
   }, [avatarFile]);
-
-  useEffect(() => {
-    if (!open || releaseVersion || !updateState?.currentVersion) {
-      return;
-    }
-
-    setReleaseVersion(suggestNextVersion(updateState.currentVersion));
-  }, [open, releaseVersion, updateState?.currentVersion]);
 
   useEffect(() => {
     if (!open || typeof document === 'undefined') {
@@ -148,60 +99,6 @@ export default function SettingsMenu({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [open]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrapUpdateState() {
-      const initial = await getUpdateState();
-      if (!cancelled && initial) {
-        setUpdateState(initial);
-        setUpdateMessage(initial.message || '');
-      }
-    }
-
-    bootstrapUpdateState();
-
-    const unsubscribe = subscribeToUpdateState((nextState) => {
-      if (!cancelled) {
-        setUpdateState(nextState);
-        setUpdateMessage(nextState?.message || '');
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrapInfoState() {
-      const initial = await getInfoState();
-      if (!cancelled && initial) {
-        setInfoTitle(initial.title || '');
-        setInfoBody(initial.body || '');
-        setInfoActive(Boolean(initial.isActive));
-      }
-    }
-
-    bootstrapInfoState();
-
-    const unsubscribe = subscribeToInfoState((nextState) => {
-      if (!cancelled && nextState) {
-        setInfoTitle(nextState.title || '');
-        setInfoBody(nextState.body || '');
-        setInfoActive(Boolean(nextState.isActive));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, []);
 
   async function handleSaveProfile() {
     setProfileBusy(true);
@@ -231,9 +128,10 @@ export default function SettingsMenu({
         theme_mode: themeDraft
       });
       onThemeModeChange(themeDraft);
+
       if (avatarUploadError) {
         setProfileMessage(
-          (avatarUploadError && typeof avatarUploadError === 'object' && ('message' in avatarUploadError || 'error_description' in avatarUploadError))
+          avatarUploadError && typeof avatarUploadError === 'object' && ('message' in avatarUploadError || 'error_description' in avatarUploadError)
             ? `Bio en status opgeslagen, maar profielfoto upload mislukt: ${String(avatarUploadError.message || avatarUploadError.error_description)}`
             : 'Bio en status opgeslagen, maar profielfoto upload mislukt.'
         );
@@ -244,7 +142,7 @@ export default function SettingsMenu({
       setOpen(false);
     } catch (error) {
       setProfileMessage(
-        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
+        error && typeof error === 'object' && ('message' in error || 'error_description' in error)
           ? String(error.message || error.error_description)
           : 'Opslaan mislukt.'
       );
@@ -264,139 +162,17 @@ export default function SettingsMenu({
     setEmailMessage('');
 
     try {
-      const result = await onEmailChange({
-        email: emailDraft
-      });
-
+      const result = await onEmailChange({ email: emailDraft });
       setEmailMessage(result?.message || 'Bevestigingsmail verstuurd.');
       setEmailEditOpen(false);
     } catch (error) {
       setEmailMessage(
-        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
+        error && typeof error === 'object' && ('message' in error || 'error_description' in error)
           ? String(error.message || error.error_description)
           : 'E-mailadres wijzigen mislukt.'
       );
     } finally {
       setEmailBusy(false);
-    }
-  }
-
-  async function handleCheckUpdates() {
-    setUpdateBusy(true);
-    setUpdateMessage('');
-    try {
-      const result = await checkForUpdates();
-      setUpdateState(result || null);
-      setUpdateMessage(result?.message || 'Updatecontrole uitgevoerd.');
-      if (!result) {
-        setUpdateMessage('Updates werken alleen in de desktop-app.');
-      }
-    } catch (error) {
-      setUpdateMessage(error instanceof Error ? error.message : 'Updatecontrole mislukt.');
-    } finally {
-      setUpdateBusy(false);
-    }
-  }
-
-  async function handleDownloadUpdate() {
-    setUpdateBusy(true);
-    setUpdateMessage('');
-    try {
-      const result = await downloadUpdate();
-      setUpdateState(result || null);
-      setUpdateMessage(result?.message || 'Download gestart.');
-      if (!result) {
-        setUpdateMessage('Updates werken alleen in de desktop-app.');
-      }
-    } catch (error) {
-      setUpdateMessage(error instanceof Error ? error.message : 'Download mislukt.');
-    } finally {
-      setUpdateBusy(false);
-    }
-  }
-
-  async function handleInstallUpdate() {
-    setUpdateBusy(true);
-    setUpdateMessage('');
-    try {
-      const result = await installUpdate();
-      setUpdateState((previous) => ({ ...(previous || {}), ...(result || {}) }));
-      setUpdateMessage(result ? 'Installer gestart.' : 'Updates werken alleen in de desktop-app.');
-    } catch (error) {
-      setUpdateMessage(error instanceof Error ? error.message : 'Installatie mislukt.');
-    } finally {
-      setUpdateBusy(false);
-    }
-  }
-
-  function handleChooseReleaseFile() {
-    if (releaseInputRef.current) {
-      releaseInputRef.current.value = '';
-      releaseInputRef.current.click();
-    }
-  }
-
-  async function handlePublishRelease(event) {
-    event.preventDefault();
-
-    if (!canPublishUpdates || releaseBusy) {
-      return;
-    }
-
-    setReleaseBusy(true);
-    setReleaseMessage('');
-
-    try {
-      const result = await onPublishUpdate?.({
-        version: releaseVersion,
-        notes: releaseNotes,
-        downloadUrl: releaseDownloadUrl,
-        file: releaseFile,
-        isRequired: releaseRequired
-      });
-
-      setReleaseMessage(result?.message || 'Update gepubliceerd.');
-      setReleaseNotes('');
-      setReleaseDownloadUrl('');
-      setReleaseFile(null);
-      setReleaseFileName('');
-    } catch (error) {
-      setReleaseMessage(
-        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
-          ? String(error.message || error.error_description)
-          : 'Publiceren mislukt.'
-      );
-    } finally {
-      setReleaseBusy(false);
-    }
-  }
-
-  async function handlePublishInfo(event) {
-    event.preventDefault();
-
-    if (!canPublishInfo || infoBusy) {
-      return;
-    }
-
-    setInfoBusy(true);
-    setInfoMessage('');
-
-    try {
-      const result = await onPublishInfo?.({
-        title: infoTitle,
-        body: infoBody,
-        isActive: infoActive
-      });
-
-      setInfoMessage(result?.message || 'Info gepubliceerd.');
-    } catch (error) {
-      setInfoMessage(
-        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
-          ? String(error.message || error.error_description)
-          : 'Publiceren mislukt.'
-      );
-    } finally {
-      setInfoBusy(false);
     }
   }
 
@@ -431,7 +207,7 @@ export default function SettingsMenu({
       setProfileMessage('Profielfoto verwijderd.');
     } catch (error) {
       setProfileMessage(
-        (error && typeof error === 'object' && ('message' in error || 'error_description' in error))
+        error && typeof error === 'object' && ('message' in error || 'error_description' in error)
           ? String(error.message || error.error_description)
           : 'Profielfoto verwijderen mislukt.'
       );
@@ -456,9 +232,8 @@ export default function SettingsMenu({
                     <p>{user?.email || 'Geen e-mail gekoppeld'}</p>
                   </div>
                 </div>
-                <div className="settings-menu__status">
-                  {statusMessage || bio || 'Beschikbaar'}
-                </div>
+
+                <div className="settings-menu__status">{statusMessage || bio || 'Beschikbaar'}</div>
               </div>
 
               <div className="settings-menu__group">
@@ -490,55 +265,6 @@ export default function SettingsMenu({
               </div>
 
               <div className="settings-menu__body">
-                <div className="settings-menu__group">
-                  <span className="settings-menu__label">Info</span>
-                  <InfoNoticeCard compact showActions={false} className="settings-menu__info" />
-
-                  {canPublishInfo ? (
-                    <form className="settings-menu__publish" onSubmit={handlePublishInfo}>
-                      <label className="field settings-menu__field">
-                        <span>Titel</span>
-                        <input
-                          className="input"
-                          value={infoTitle}
-                          onChange={(event) => setInfoTitle(event.target.value)}
-                          placeholder="Bijvoorbeeld: Nieuwe crew-info"
-                        />
-                      </label>
-
-                      <label className="field settings-menu__field">
-                        <span>Bericht</span>
-                        <textarea
-                          className="input settings-menu__textarea"
-                          value={infoBody}
-                          onChange={(event) => setInfoBody(event.target.value)}
-                          placeholder="Schrijf hier wat de crew moet zien op login en dashboard..."
-                        />
-                      </label>
-
-                      <label className="settings-menu__toggle settings-menu__toggle--full">
-                        <input
-                          type="checkbox"
-                          checked={infoActive}
-                          onChange={(event) => setInfoActive(event.target.checked)}
-                        />
-                        <span>Toon info op login en dashboard</span>
-                      </label>
-
-                      <button className="button button--primary button--full" type="submit" disabled={infoBusy}>
-                        <PencilLine size={16} />
-                        {infoBusy ? 'Opslaan...' : 'Info opslaan'}
-                      </button>
-
-                      {infoMessage ? <p className="settings-menu__message">{infoMessage}</p> : null}
-                    </form>
-                  ) : (
-                    <p className="settings-menu__hint">
-                      Alleen Mattiz kan deze info beheren. Wat hier staat verschijnt exact hetzelfde op het login-scherm en in het dashboard.
-                    </p>
-                  )}
-                </div>
-
                 <div className="settings-menu__group">
                   <span className="settings-menu__label">Account</span>
                   <div className="settings-menu__upload">
@@ -574,11 +300,7 @@ export default function SettingsMenu({
                       <strong>E-mailadres</strong>
                       <span>{user?.email || 'Geen e-mail gekoppeld'}</span>
                     </div>
-                    <button
-                      className="button button--secondary"
-                      type="button"
-                      onClick={() => setEmailEditOpen((value) => !value)}
-                    >
+                    <button className="button button--secondary" type="button" onClick={() => setEmailEditOpen((value) => !value)}>
                       <Mail size={16} />
                       Wijzig e-mailadres
                     </button>
@@ -600,12 +322,7 @@ export default function SettingsMenu({
                       </label>
 
                       <div className="login-form__actions settings-menu__email-actions">
-                        <button
-                          className="button button--ghost"
-                          type="button"
-                          disabled={emailBusy}
-                          onClick={() => setEmailEditOpen(false)}
-                        >
+                        <button className="button button--ghost" type="button" disabled={emailBusy} onClick={() => setEmailEditOpen(false)}>
                           Terug
                         </button>
 
@@ -643,113 +360,6 @@ export default function SettingsMenu({
 
                   {profileMessage ? <p className="settings-menu__message">{profileMessage}</p> : null}
                   {emailMessage ? <p className="settings-menu__message">{emailMessage}</p> : null}
-                </div>
-
-                <div className="settings-menu__group">
-                  <span className="settings-menu__label">Updates</span>
-                  <UpdateNoticeCard compact showActions={false} className="settings-menu__update" />
-                  <button className="button button--secondary button--full" type="button" onClick={handleCheckUpdates} disabled={updateBusy}>
-                    <RefreshCw size={16} />
-                    Controleer updates
-                  </button>
-
-                  {updateState?.status === 'available' ? (
-                    <button className="button button--primary button--full" type="button" onClick={handleDownloadUpdate} disabled={updateBusy}>
-                      <CloudDownload size={16} />
-                      Download update
-                    </button>
-                  ) : null}
-
-                  {updateState?.status === 'ready' ? (
-                    <button className="button button--primary button--full" type="button" onClick={handleInstallUpdate} disabled={updateBusy}>
-                      <Upload size={16} />
-                      Installeer update
-                    </button>
-                  ) : null}
-
-                {updateMessage ? <p className="settings-menu__message">{updateMessage}</p> : null}
-
-                  {canPublishUpdates ? (
-                    <form className="settings-menu__publish" onSubmit={handlePublishRelease}>
-                      <span className="settings-menu__label">Publiceer update</span>
-
-                        <label className="field settings-menu__field">
-                          <span>Versie</span>
-                          <input
-                            className="input"
-                            value={releaseVersion}
-                            onChange={(event) => setReleaseVersion(event.target.value)}
-                            placeholder="Bijvoorbeeld 2.0.1"
-                          />
-                          <small className="settings-menu__hint">
-                            Aanbevolen nieuwe versie: {suggestNextVersion(updateState?.currentVersion)}
-                          </small>
-                        </label>
-
-                      <label className="field settings-menu__field">
-                        <span>Opmerking</span>
-                        <textarea
-                          className="input settings-menu__textarea"
-                          value={releaseNotes}
-                          onChange={(event) => setReleaseNotes(event.target.value)}
-                          placeholder="Wat is er nieuw in deze update?"
-                        />
-                      </label>
-
-                      <label className="field settings-menu__field">
-                        <span>GitHub download-URL (optioneel)</span>
-                        <input
-                          className="input"
-                          value={releaseDownloadUrl}
-                          onChange={(event) => setReleaseDownloadUrl(event.target.value)}
-                          placeholder="Plak hier de GitHub release-link of directe .exe-link"
-                        />
-                      </label>
-
-                      <label className="field settings-menu__field">
-                        <span>Updatebestand</span>
-                        <div className="settings-menu__upload settings-menu__upload--compact">
-                          <div className="settings-menu__upload-copy">
-                            <strong>{releaseFileName || 'Kies de .exe van de update'}</strong>
-                            <span>Gebruik bij voorkeur een GitHub Release-link of een directe .exe-link. Bestanden boven 50 MB werken op Supabase Free niet als upload.</span>
-                            <div className="settings-menu__upload-actions">
-                              <button className="button button--secondary" type="button" onClick={handleChooseReleaseFile}>
-                                <Upload size={16} />
-                                Kies .exe
-                              </button>
-                              <label className="settings-menu__toggle">
-                                <input
-                                  type="checkbox"
-                                  checked={releaseRequired}
-                                  onChange={(event) => setReleaseRequired(event.target.checked)}
-                                />
-                                <span>Verplichte update</span>
-                              </label>
-                            </div>
-                          </div>
-                          <input
-                            ref={releaseInputRef}
-                            type="file"
-                            hidden
-                            accept=".exe,application/vnd.microsoft.portable-executable"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0] || null;
-                              setReleaseFile(file);
-                              setReleaseFileName(file?.name || '');
-                              event.target.value = '';
-                            }}
-                          />
-                        </div>
-                      </label>
-
-                      <button className="button button--primary button--full" type="submit" disabled={releaseBusy}>
-                        <CloudDownload size={16} />
-                        {releaseBusy ? 'Publiceren...' : 'Publiceer update'}
-                      </button>
-
-                      {releaseMessage ? <p className="settings-menu__message">{releaseMessage}</p> : null}
-                    </form>
-                  ) : null}
                 </div>
               </div>
 

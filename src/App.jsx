@@ -178,9 +178,7 @@ function ProtectedLayout({
   onProfileSave,
   onAvatarUpload,
   onAvatarDelete,
-  onEmailChange,
-  onPublishInfo,
-  onPublishUpdate
+  onEmailChange
 }) {
   if (!currentUser) {
     return <Navigate to="/login" replace />;
@@ -203,8 +201,6 @@ function ProtectedLayout({
         onAvatarUpload={onAvatarUpload}
         onAvatarDelete={onAvatarDelete}
         onEmailChange={onEmailChange}
-        onPublishInfo={onPublishInfo}
-        onPublishUpdate={onPublishUpdate}
       >
         <Outlet />
       </AppShell>
@@ -2050,8 +2046,6 @@ export default function App() {
               onAvatarUpload={handleUploadProfileAvatar}
               onAvatarDelete={handleDeleteProfileAvatar}
               onEmailChange={handleChangeEmail}
-              onPublishInfo={handlePublishInfo}
-              onPublishUpdate={handlePublishUpdate}
             />
           }
         >
@@ -2109,6 +2103,40 @@ export default function App() {
                 onSaveMusicRelease={handleSaveMusicRelease}
                 onDeleteMusicRelease={handleDeleteMusicRelease}
               />
+            }
+          />
+          <Route
+            path="/beheren"
+            element={
+              normalizeUsername(activeUser?.username) === 'mattiz' ? (
+                <DashboardPage
+                  currentUser={activeUser}
+                  songs={songs}
+                  loading={songsLoading}
+                  allowedUsers={allowedUsers}
+                  musicReleases={musicReleases}
+                  musicReleasesLoading={musicReleasesLoading}
+                  notifications={notifications}
+                  notificationsLoading={notificationsLoading}
+                  activity={activity}
+                  activityLoading={activityLoading}
+                  pageMode="manage"
+                  onNewSong={handleNewSong}
+                  onOpenSong={(song) => navigate(`/editor/${song.id}`)}
+                  onRefreshSongs={loadSongs}
+                  onOpenNotification={handleOpenNotification}
+                  onClearNotifications={handleClearAllNotifications}
+                  onSendAnnouncement={handleSendAnnouncement}
+                  onUploadAsset={handleUploadAsset}
+                  onRefreshMusicReleases={loadMusicReleases}
+                  onSaveMusicRelease={handleSaveMusicRelease}
+                  onDeleteMusicRelease={handleDeleteMusicRelease}
+                  onPublishInfo={handlePublishInfo}
+                  onPublishUpdate={handlePublishUpdate}
+                />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
             }
           />
           <Route

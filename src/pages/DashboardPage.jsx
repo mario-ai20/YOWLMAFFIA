@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Clock3, Music2, Plus, RefreshCw, Sparkles, Upload } from 'lucide-react';
+import { Bell, CheckCheck, Clock3, CloudDownload, Music2, PencilLine, Plus, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SongCard from '../components/SongCard';
 import InfoNoticeCard from '../components/InfoNoticeCard';
@@ -9,6 +9,9 @@ import { createDefaultCoverDataUrl } from '../utils/defaultCover';
 import { formatRelativeTime } from '../utils/dates';
 import { createSpotifySearchUrl } from '../utils/musicReleases';
 import { normalizeUsername } from '../utils/users';
+import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate, subscribeToUpdateState } from '../utils/updates';
+import { getInfoState, subscribeToInfoState } from '../utils/infoNotice';
+import { suggestNextVersion } from '../utils/version';
 
 function DashboardListItem({ item, onClick, unread = false, icon: Icon, nowTick, showTimestamp = true }) {
   return (
@@ -51,9 +54,12 @@ export default function DashboardPage({
   onUploadAsset,
   onRefreshMusicReleases,
   onSaveMusicRelease,
-  onDeleteMusicRelease
+  onDeleteMusicRelease,
+  onPublishInfo,
+  onPublishUpdate
 }) {
   const coverInputRef = useRef(null);
+  const releaseInputRef = useRef(null);
   const [announcementRecipient, setAnnouncementRecipient] = useState('team');
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
@@ -68,12 +74,30 @@ export default function DashboardPage({
   const [musicBusy, setMusicBusy] = useState(false);
   const [musicMessage, setMusicMessage] = useState('');
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [infoTitle, setInfoTitle] = useState('');
+  const [infoBody, setInfoBody] = useState('');
+  const [infoActive, setInfoActive] = useState(true);
+  const [infoBusy, setInfoBusy] = useState(false);
+  const [infoMessage, setInfoMessage] = useState('');
+  const [updateState, setUpdateState] = useState(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
+  const [releaseVersion, setReleaseVersion] = useState('');
+  const [releaseNotes, setReleaseNotes] = useState('');
+  const [releaseDownloadUrl, setReleaseDownloadUrl] = useState('');
+  const [releaseFile, setReleaseFile] = useState(null);
+  const [releaseFileName, setReleaseFileName] = useState('');
+  const [releaseRequired, setReleaseRequired] = useState(false);
+  const [releaseBusy, setReleaseBusy] = useState(false);
+  const [releaseMessage, setReleaseMessage] = useState('');
 
   const unreadNotifications = notifications.filter((notification) => !notification.is_read);
   const isSongsPage = pageMode === 'songs';
-  const canSendAnnouncements = normalizeUsername(currentUser?.username) === 'mattiz' && typeof onSendAnnouncement === 'function';
+  const isManagePage = pageMode === 'manage';
+  const canManageTools = isManagePage && normalizeUsername(currentUser?.username) === 'mattiz';
+  const canSendAnnouncements = canManageTools && typeof onSendAnnouncement === 'function';
   const canManageMusic =
-    normalizeUsername(currentUser?.username) === 'mattiz' &&
+    canManageTools &&
     typeof onSaveMusicRelease === 'function' &&
     typeof onDeleteMusicRelease === 'function';
   const displayedMusicReleases = useMemo(
@@ -88,6 +112,68 @@ export default function DashboardPage({
 
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!canManageTools) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function bootstrapUpdateState() {
+      const initial = await getUpdateState();
+      if (!cancelled && initial) {
+        setUpdateState(initial);
+        setUpdateMessage(initial.message || '');
+      }
+    }
+
+    bootstrapUpdateState();
+
+    const unsubscribe = subscribeToUpdateState((nextState) => {
+      if (!cancelled) {
+        setUpdateState(nextState);
+        setUpdateMessage(nextState?.message || '');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [canManageTools]);
+
+  useEffect(() => {
+    if (!canManageTools) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function bootstrapInfoState() {
+      const initial = await getInfoState();
+      if (!cancelled && initial) {
+        setInfoTitle(initial.title || '');
+        setInfoBody(initial.body || '');
+        setInfoActive(Boolean(initial.isActive));
+      }
+    }
+
+    bootstrapInfoState();
+
+    const unsubscribe = subscribeToInfoState((nextState) => {
+      if (!cancelled && nextState) {
+        setInfoTitle(nextState.title || '');
+        setInfoBody(nextState.body || '');
+        setInfoActive(Boolean(nextState.isActive));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [canManageTools]);
 
   async function handleSendAnnouncement(event) {
     event.preventDefault();
@@ -116,6 +202,125 @@ export default function DashboardPage({
       setAnnouncementMessage(error instanceof Error ? error.message : 'Melding versturen mislukt.');
     } finally {
       setAnnouncementBusy(false);
+    }
+  }
+
+  function handleChooseReleaseFile() {
+    if (releaseInputRef.current) {
+      releaseInputRef.current.value = '';
+      releaseInputRef.current.click();
+    }
+  }
+
+  async function handleCheckUpdates() {
+    setUpdateBusy(true);
+    setUpdateMessage('');
+    try {
+      const result = await checkForUpdates();
+      setUpdateState(result || null);
+      setUpdateMessage(result?.message || 'Updatecontrole uitgevoerd.');
+      if (!result) {
+        setUpdateMessage('Updates werken alleen in de desktop-app.');
+      }
+    } catch (error) {
+      setUpdateMessage(error instanceof Error ? error.message : 'Updatecontrole mislukt.');
+    } finally {
+      setUpdateBusy(false);
+    }
+  }
+
+  async function handleDownloadUpdate() {
+    setUpdateBusy(true);
+    setUpdateMessage('');
+    try {
+      const result = await downloadUpdate();
+      setUpdateState(result || null);
+      setUpdateMessage(result?.message || 'Download gestart.');
+      if (!result) {
+        setUpdateMessage('Updates werken alleen in de desktop-app.');
+      }
+    } catch (error) {
+      setUpdateMessage(error instanceof Error ? error.message : 'Download mislukt.');
+    } finally {
+      setUpdateBusy(false);
+    }
+  }
+
+  async function handleInstallUpdate() {
+    setUpdateBusy(true);
+    setUpdateMessage('');
+    try {
+      const result = await installUpdate();
+      setUpdateState((previous) => ({ ...(previous || {}), ...(result || {}) }));
+      setUpdateMessage(result ? 'Installer gestart.' : 'Updates werken alleen in de desktop-app.');
+    } catch (error) {
+      setUpdateMessage(error instanceof Error ? error.message : 'Installatie mislukt.');
+    } finally {
+      setUpdateBusy(false);
+    }
+  }
+
+  async function handlePublishRelease(event) {
+    event.preventDefault();
+
+    if (!canManageTools || releaseBusy) {
+      return;
+    }
+
+    setReleaseBusy(true);
+    setReleaseMessage('');
+
+    try {
+      const result = await onPublishUpdate?.({
+        version: releaseVersion,
+        notes: releaseNotes,
+        downloadUrl: releaseDownloadUrl,
+        file: releaseFile,
+        isRequired: releaseRequired
+      });
+
+      setReleaseMessage(result?.message || 'Update gepubliceerd.');
+      setReleaseNotes('');
+      setReleaseDownloadUrl('');
+      setReleaseFile(null);
+      setReleaseFileName('');
+    } catch (error) {
+      setReleaseMessage(
+        error && typeof error === 'object' && ('message' in error || 'error_description' in error)
+          ? String(error.message || error.error_description)
+          : 'Publiceren mislukt.'
+      );
+    } finally {
+      setReleaseBusy(false);
+    }
+  }
+
+  async function handlePublishInfo(event) {
+    event.preventDefault();
+
+    if (!canManageTools || infoBusy) {
+      return;
+    }
+
+    setInfoBusy(true);
+    setInfoMessage('');
+
+    try {
+      const result = await onPublishInfo?.({
+        title: infoTitle,
+        body: infoBody,
+        isActive: infoActive
+      });
+
+      setInfoMessage(result?.message || 'Info gepubliceerd.');
+    } catch (error) {
+      setInfoMessage(
+        error && typeof error === 'object' && ('message' in error || 'error_description' in error)
+          ? String(error.message || error.error_description)
+          : 'Publiceren mislukt.'
+      );
+    } finally {
+      setInfoBusy(false);
     }
   }
 
@@ -220,10 +425,12 @@ export default function DashboardPage({
       <div className="dashboard-page__main">
         <div className="page-title">
           <div>
-            <span className="eyebrow">{isSongsPage ? 'Songs' : 'Dashboard'}</span>
-            <h1>{isSongsPage ? 'Alle songs' : 'Alle songs in de gedeelde database'}</h1>
+            <span className="eyebrow">{isManagePage ? 'Beheren' : isSongsPage ? 'Songs' : 'Dashboard'}</span>
+            <h1>{isManagePage ? 'Alles beheren' : isSongsPage ? 'Alle songs' : 'Alle songs in de gedeelde database'}</h1>
             <p>
-              {isSongsPage
+              {isManagePage
+                ? 'Beheer songs, banners, updates, info en pushberichten vanuit één centrale plek.'
+                : isSongsPage
                 ? 'Open een song of maak meteen een nieuw nummer aan.'
                 : 'Open een song, maak een nieuwe aan of check wat er zonet gebeurde binnen jouw crew.'}
             </p>
@@ -261,7 +468,7 @@ export default function DashboardPage({
           </div>
         )}
 
-        {!isSongsPage ? (
+        {(!isSongsPage || isManagePage) ? (
           <section className="panel dashboard-music">
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Spotify</span>
@@ -278,7 +485,7 @@ export default function DashboardPage({
               ) : null}
             </div>
 
-            {canManageMusic ? (
+            {isManagePage && canManageMusic ? (
               <form className="dashboard-compose dashboard-compose--music dashboard-compose--music-tight" onSubmit={handleSaveMusicRelease}>
                 <div className="dashboard-compose__split">
                   <label className="field dashboard-compose__field">
@@ -376,8 +583,170 @@ export default function DashboardPage({
 
       {!isSongsPage ? (
         <aside className="dashboard-page__sidebar">
-          <InfoNoticeCard compact className="dashboard-info" />
-          <UpdateNoticeCard compact className="dashboard-update" />
+          {isManagePage ? (
+            <>
+              <section className="panel dashboard-feed">
+                <div className="panel__header">
+                  <span className="eyebrow">Info</span>
+                  <h2>
+                    <PencilLine size={16} />
+                    Login- en dashboardtekst
+                  </h2>
+                </div>
+
+                <InfoNoticeCard compact showActions={false} className="settings-menu__info" />
+
+                <form className="settings-menu__publish" onSubmit={handlePublishInfo}>
+                  <label className="field settings-menu__field">
+                    <span>Titel</span>
+                    <input
+                      className="input"
+                      value={infoTitle}
+                      onChange={(event) => setInfoTitle(event.target.value)}
+                      placeholder="Bijvoorbeeld: Nieuwe crew-info"
+                    />
+                  </label>
+
+                  <label className="field settings-menu__field">
+                    <span>Bericht</span>
+                    <textarea
+                      className="input settings-menu__textarea"
+                      value={infoBody}
+                      onChange={(event) => setInfoBody(event.target.value)}
+                      placeholder="Schrijf hier wat de crew moet zien op login en dashboard..."
+                    />
+                  </label>
+
+                  <label className="settings-menu__toggle settings-menu__toggle--full">
+                    <input type="checkbox" checked={infoActive} onChange={(event) => setInfoActive(event.target.checked)} />
+                    <span>Toon info op login en dashboard</span>
+                  </label>
+
+                  <button className="button button--primary button--full" type="submit" disabled={infoBusy}>
+                    <PencilLine size={16} />
+                    {infoBusy ? 'Opslaan...' : 'Info opslaan'}
+                  </button>
+
+                  {infoMessage ? <p className="settings-menu__message">{infoMessage}</p> : null}
+                </form>
+              </section>
+
+              <section className="panel dashboard-feed">
+                <div className="panel__header">
+                  <span className="eyebrow">Updates</span>
+                  <h2>
+                    <RefreshCw size={16} />
+                    App updates
+                  </h2>
+                </div>
+
+                <UpdateNoticeCard compact showActions={false} className="settings-menu__update" />
+
+                <button className="button button--secondary button--full" type="button" onClick={handleCheckUpdates} disabled={updateBusy}>
+                  <RefreshCw size={16} />
+                  Controleer updates
+                </button>
+
+                {updateState?.status === 'available' ? (
+                  <button className="button button--primary button--full" type="button" onClick={handleDownloadUpdate} disabled={updateBusy}>
+                    <CloudDownload size={16} />
+                    Download update
+                  </button>
+                ) : null}
+
+                {updateState?.status === 'ready' ? (
+                  <button className="button button--primary button--full" type="button" onClick={handleInstallUpdate} disabled={updateBusy}>
+                    <Upload size={16} />
+                    Installeer update
+                  </button>
+                ) : null}
+
+                {updateMessage ? <p className="settings-menu__message">{updateMessage}</p> : null}
+
+                {typeof onPublishUpdate === 'function' ? (
+                  <form className="settings-menu__publish" onSubmit={handlePublishRelease}>
+                    <span className="settings-menu__label">Publiceer update</span>
+
+                    <label className="field settings-menu__field">
+                      <span>Versie</span>
+                      <input
+                        className="input"
+                        value={releaseVersion}
+                        onChange={(event) => setReleaseVersion(event.target.value)}
+                        placeholder="Bijvoorbeeld 2.0.1"
+                      />
+                      <small className="settings-menu__hint">
+                        Aanbevolen nieuwe versie: {suggestNextVersion(updateState?.currentVersion)}
+                      </small>
+                    </label>
+
+                    <label className="field settings-menu__field">
+                      <span>Opmerking</span>
+                      <textarea
+                        className="input settings-menu__textarea"
+                        value={releaseNotes}
+                        onChange={(event) => setReleaseNotes(event.target.value)}
+                        placeholder="Wat is er nieuw in deze update?"
+                      />
+                    </label>
+
+                    <label className="field settings-menu__field">
+                      <span>GitHub download-URL (optioneel)</span>
+                      <input
+                        className="input"
+                        value={releaseDownloadUrl}
+                        onChange={(event) => setReleaseDownloadUrl(event.target.value)}
+                        placeholder="Plak hier de GitHub release-link of directe .exe-link"
+                      />
+                    </label>
+
+                    <label className="field settings-menu__field">
+                      <span>Updatebestand</span>
+                      <div className="settings-menu__upload settings-menu__upload--compact">
+                        <div className="settings-menu__upload-copy">
+                          <strong>{releaseFileName || 'Kies de .exe van de update'}</strong>
+                          <span>Gebruik bij voorkeur een GitHub Release-link of een directe .exe-link. Bestanden boven 50 MB werken op Supabase Free niet als upload.</span>
+                          <div className="settings-menu__upload-actions">
+                            <button className="button button--secondary" type="button" onClick={handleChooseReleaseFile}>
+                              <Upload size={16} />
+                              Kies .exe
+                            </button>
+                            <label className="settings-menu__toggle">
+                              <input
+                                type="checkbox"
+                                checked={releaseRequired}
+                                onChange={(event) => setReleaseRequired(event.target.checked)}
+                              />
+                              <span>Verplichte update</span>
+                            </label>
+                          </div>
+                        </div>
+                        <input
+                          ref={releaseInputRef}
+                          type="file"
+                          hidden
+                          accept=".exe,application/vnd.microsoft.portable-executable"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] || null;
+                            setReleaseFile(file);
+                            setReleaseFileName(file?.name || '');
+                            event.target.value = '';
+                          }}
+                        />
+                      </div>
+                    </label>
+
+                    <button className="button button--primary button--full" type="submit" disabled={releaseBusy}>
+                      <CloudDownload size={16} />
+                      {releaseBusy ? 'Publiceren...' : 'Publiceer update'}
+                    </button>
+
+                    {releaseMessage ? <p className="settings-menu__message">{releaseMessage}</p> : null}
+                  </form>
+                ) : null}
+              </section>
+            </>
+          ) : null}
 
           {canSendAnnouncements ? (
             <section className="panel dashboard-compose">
