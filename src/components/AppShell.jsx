@@ -126,17 +126,19 @@ export default function AppShell({
         </nav>
 
         <div className="app-shell__user">
-          <div className="app-shell__clock" aria-label={`Huidige datum en tijd: ${headerDateTime}`}>
-            <span>{headerDateTime}</span>
+          <div className="app-shell__header-row">
+            <div className="app-shell__notifications" aria-live="polite">
+              <Bell size={15} />
+              <span>{notificationCount > 0 ? `${notificationCount} nieuw` : 'Alles bijgewerkt'}</span>
+            </div>
+
+            <div className="app-shell__clock" aria-label={`Huidige datum en tijd: ${headerDateTime}`}>
+              <span>{headerDateTime}</span>
+            </div>
           </div>
 
           <div className="app-shell__user-row">
             <div className="app-shell__status">
-              <div className="app-shell__notifications" aria-live="polite">
-                <Bell size={15} />
-                <span>{notificationCount > 0 ? `${notificationCount} nieuw` : 'Alles bijgewerkt'}</span>
-              </div>
-
               <div className="user-chip">
                 <UserAvatar user={user} size={42} showDot />
                 <div>

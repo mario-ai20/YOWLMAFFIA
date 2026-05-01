@@ -727,6 +727,15 @@ a {
   min-width: 0;
 }
 
+.app-shell__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
 .app-shell__clock {
   display: inline-flex;
   align-items: center;
@@ -2664,6 +2673,10 @@ a {
 
   .app-shell__user {
     gap: 0.35rem;
+  }
+
+  .app-shell__header-row {
+    gap: 0.45rem;
   }
 
   .app-shell__clock {
