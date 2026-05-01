@@ -32,8 +32,7 @@ export default function ChatPage({
   currentUser,
   loading = false,
   allowedUsers = DEFAULT_ALLOWED_USERS,
-  onlineUsernames = [],
-  presenceLastSeenByUsername = {}
+  onlineUsernames = []
 }) {
   if (!supabase) {
     return <SetupNotice />;
@@ -76,8 +75,7 @@ export default function ChatPage({
   );
 
   function getOfflineLastSeenLabel(user) {
-    const username = normalizeUsername(user?.username);
-    const lastSeenAt = presenceLastSeenByUsername?.[username];
+    const lastSeenAt = user?.last_online_at;
 
     if (!lastSeenAt) {
       return '';

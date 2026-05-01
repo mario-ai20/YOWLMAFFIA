@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
 import { getAppVersion } from '../utils/yowl';
 import SettingsMenu from './SettingsMenu';
-import { normalizeUsername } from '../utils/users';
 import UserAvatar from './UserAvatar';
-
-function getPreferenceStorageKey(username) {
-  return `yowlmaffia-preferences:${normalizeUsername(username || 'guest') || 'guest'}`;
-}
 
 function resolveThemeMode(mode) {
   if (mode === 'light' || mode === 'dark') {
@@ -36,9 +31,8 @@ export default function AppShell({
   children
 }) {
   const [appVersion, setAppVersion] = useState('dev');
-  const [themeMode, setThemeMode] = useState('system');
+  const [themeMode, setThemeMode] = useState(user?.theme_mode || 'system');
   const [nowTick, setNowTick] = useState(() => Date.now());
-  const storageKey = useMemo(() => getPreferenceStorageKey(user?.username), [user?.username]);
 
   const headerDateTime = useMemo(() => {
     try {
@@ -72,27 +66,8 @@ export default function AppShell({
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const stored = window.localStorage.getItem(storageKey);
-    if (!stored) {
-      setThemeMode('system');
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(stored);
-      if (parsed?.themeMode) {
-        setThemeMode(parsed.themeMode);
-      } else {
-        setThemeMode('system');
-      }
-    } catch (error) {
-      setThemeMode('system');
-    }
-  }, [storageKey]);
+    setThemeMode(user?.theme_mode || 'system');
+  }, [user?.theme_mode, user?.username]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -121,14 +96,6 @@ export default function AppShell({
       media.removeEventListener('change', handleChange);
     };
   }, [themeMode]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.setItem(storageKey, JSON.stringify({ themeMode }));
-  }, [storageKey, themeMode]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {

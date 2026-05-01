@@ -8,8 +8,10 @@ export const DEFAULT_ALLOWED_USERS = [
     accent: '#ff6b9c',
     avatar_url: '',
     updated_at: '',
+    last_online_at: '',
     bio: '',
-    status_message: ''
+    status_message: '',
+    theme_mode: 'system'
   },
   {
     username: 'Lukas',
@@ -18,8 +20,10 @@ export const DEFAULT_ALLOWED_USERS = [
     accent: '#72d4ff',
     avatar_url: '',
     updated_at: '',
+    last_online_at: '',
     bio: '',
-    status_message: ''
+    status_message: '',
+    theme_mode: 'system'
   },
   {
     username: 'Yoshi',
@@ -28,8 +32,10 @@ export const DEFAULT_ALLOWED_USERS = [
     accent: '#a6ff7c',
     avatar_url: '',
     updated_at: '',
+    last_online_at: '',
     bio: '',
-    status_message: ''
+    status_message: '',
+    theme_mode: 'system'
   }
 ];
 
@@ -39,66 +45,24 @@ export function normalizeUsername(value) {
     .toLowerCase();
 }
 
-function getProfileCacheKey(identifier) {
-  return `yowlmaffia-profile-cache:${normalizeUsername(identifier || 'guest') || 'guest'}`;
-}
-
-function readLocalStorageJson(key) {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function writeLocalStorageJson(key, value) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    // Ignore storage quota / privacy-mode errors.
-  }
-}
-
-function mergeCachedProfile(user) {
-  const cached =
-    readLocalStorageJson(getProfileCacheKey(user?.username)) ||
-    readLocalStorageJson(getProfileCacheKey(user?.email)) ||
-    readLocalStorageJson(getProfileCacheKey(user?.displayName));
-
-  if (!cached) {
-    return user;
-  }
-
-  return {
-    ...user,
-    accent: user?.accent ?? cached?.accent ?? '#72d4ff',
-    avatar_url: String(user?.avatar_url ?? '').trim(),
-    updated_at: user?.updated_at ?? cached?.updated_at ?? '',
-    bio: user?.bio ?? cached?.bio ?? '',
-    status_message: user?.status_message ?? cached?.status_message ?? ''
-  };
+function normalizeThemeMode(value) {
+  const mode = String(value || '').trim().toLowerCase();
+  return mode === 'light' || mode === 'dark' || mode === 'system' ? mode : 'system';
 }
 
 export function normalizeAllowedUser(user) {
-  return mergeCachedProfile({
+  return {
     username: String(user?.username || '').trim(),
     displayName: String(user?.display_name || user?.displayName || user?.username || '').trim(),
     email: String(user?.email || '').trim(),
     accent: user?.accent || '#72d4ff',
     avatar_url: String(user?.avatar_url || user?.avatarUrl || '').trim(),
     updated_at: String(user?.updated_at || user?.updatedAt || '').trim(),
+    last_online_at: String(user?.last_online_at || user?.lastOnlineAt || '').trim(),
     bio: String(user?.bio || '').trim(),
-    status_message: String(user?.status_message || user?.statusMessage || '').trim()
-  });
+    status_message: String(user?.status_message || user?.statusMessage || '').trim(),
+    theme_mode: normalizeThemeMode(user?.theme_mode || user?.themeMode || 'system')
+  };
 }
 
 export function appendAvatarVersion(avatarUrl = '', updatedAt = '') {
@@ -155,18 +119,18 @@ export function getUsernameOptions(allowedUsers = DEFAULT_ALLOWED_USERS) {
 
 export async function loadAllowedUsers() {
   if (!supabase) {
-    return DEFAULT_ALLOWED_USERS.map(mergeCachedProfile);
+    return DEFAULT_ALLOWED_USERS.map(normalizeAllowedUser);
   }
 
   const selectAllowedUsers = async (fields) =>
     supabase.from('allowed_users').select(fields).order('display_name', { ascending: true });
 
-  const primaryResult = await selectAllowedUsers('username, email, display_name, accent, avatar_url, updated_at, bio, status_message');
+  const primaryResult = await selectAllowedUsers('username, email, display_name, accent, avatar_url, updated_at, last_online_at, bio, status_message, theme_mode');
 
   let { data, error } = primaryResult;
 
   if (error) {
-    const fallbackResult = await selectAllowedUsers('username, email, display_name, avatar_url, updated_at, bio, status_message');
+    const fallbackResult = await selectAllowedUsers('username, email, display_name, avatar_url, updated_at, last_online_at, bio, status_message');
     data = fallbackResult.data;
     error = fallbackResult.error;
   }
@@ -178,10 +142,10 @@ export async function loadAllowedUsers() {
   }
 
   if (error || !Array.isArray(data) || !data.length) {
-    return DEFAULT_ALLOWED_USERS.map(mergeCachedProfile);
+    return DEFAULT_ALLOWED_USERS.map(normalizeAllowedUser);
   }
 
-  return data.map(normalizeAllowedUser).map(mergeCachedProfile);
+  return data.map(normalizeAllowedUser);
 }
 
 export function resolveUserFromSession(session, allowedUsers = DEFAULT_ALLOWED_USERS) {
@@ -195,20 +159,5 @@ export function resolveUserFromSession(session, allowedUsers = DEFAULT_ALLOWED_U
     allowedUsers.find((user) => normalizeUsername(user.email) === normalizeUsername(email)) ||
     null;
 
-  return matched ? mergeCachedProfile(matched) : null;
-}
-
-export function cacheAllowedUserProfile(user = null) {
-  if (!user) {
-    return;
-  }
-
-  const payload = normalizeAllowedUser(user);
-  writeLocalStorageJson(getProfileCacheKey(payload.username), payload);
-  if (payload.email) {
-    writeLocalStorageJson(getProfileCacheKey(payload.email), payload);
-  }
-  if (payload.displayName) {
-    writeLocalStorageJson(getProfileCacheKey(payload.displayName), payload);
-  }
+  return matched ? normalizeAllowedUser(matched) : null;
 }

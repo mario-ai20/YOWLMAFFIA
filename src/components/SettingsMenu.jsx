@@ -227,7 +227,8 @@ export default function SettingsMenu({
       await onProfileSave?.({
         bio,
         status_message: statusMessage,
-        avatar_url: nextAvatarUrl
+        avatar_url: nextAvatarUrl,
+        theme_mode: themeDraft
       });
       onThemeModeChange(themeDraft);
       if (avatarUploadError) {
@@ -422,7 +423,8 @@ export default function SettingsMenu({
       await onProfileSave?.({
         bio,
         status_message: statusMessage,
-        avatar_url: ''
+        avatar_url: '',
+        theme_mode: themeDraft
       });
 
       onThemeModeChange(themeDraft);

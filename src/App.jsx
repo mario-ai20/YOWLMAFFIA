@@ -4,7 +4,6 @@ import CreateSongDialog from './components/CreateSongDialog';
 import { supabase, supabaseUrl, supabaseAnonKey, isSupabaseConfigured } from './utils/supabase';
 import {
   DEFAULT_ALLOWED_USERS,
-  cacheAllowedUserProfile,
   findAllowedUser,
   loadAllowedUsers,
   normalizeUsername,
@@ -408,23 +407,6 @@ export default function App() {
   const [createSongBusy, setCreateSongBusy] = useState(false);
   const [createSongError, setCreateSongError] = useState('');
   const [onlineUsernames, setOnlineUsernames] = useState([]);
-  const [presenceLastSeenByUsername, setPresenceLastSeenByUsername] = useState(() => {
-    if (typeof window === 'undefined') {
-      return {};
-    }
-
-    try {
-      const stored = window.localStorage.getItem('yowlmaffia:presence-last-seen');
-      if (!stored) {
-        return {};
-      }
-
-      const parsed = JSON.parse(stored);
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
   const cleanedAvatarFoldersRef = useRef(new Set());
   const loginFlowBypassRef = useRef(false);
 
@@ -722,14 +704,6 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem('yowlmaffia:presence-last-seen', JSON.stringify(presenceLastSeenByUsername));
-    } catch {
-      // Ignore localStorage errors and keep presence working.
-    }
-  }, [presenceLastSeenByUsername]);
-
-  useEffect(() => {
     if (!currentUser || !supabase) {
       setOnlineUsernames([]);
       return undefined;
@@ -737,11 +711,26 @@ export default function App() {
 
     let cancelled = false;
     const channel = supabase.channel('team-presence');
+    let heartbeatTimer = null;
+
+    async function touchCurrentUserOnlineAt(timestamp = Date.now()) {
+      if (!currentUser?.email) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from('allowed_users')
+        .update({ last_online_at: new Date(timestamp).toISOString() })
+        .eq('email', currentUser.email);
+
+      if (error) {
+        console.error(error);
+      }
+    }
 
     const syncPresenceUsers = () => {
       const state = channel.presenceState();
       const nextUsernames = new Set();
-      const nextLastSeen = {};
 
       Object.values(state)
         .flat()
@@ -749,30 +738,16 @@ export default function App() {
           const username = normalizePresenceUsername(entry.username || entry.id || entry.userId || entry.email || '');
           if (username) {
             nextUsernames.add(username);
-            const seenAt = Number(entry.updatedAt || entry.updated_at || entry.lastSeenAt || Date.now());
-            nextLastSeen[username] = Number.isFinite(seenAt) ? seenAt : Date.now();
           }
         });
 
       if (!cancelled) {
         setOnlineUsernames(Array.from(nextUsernames));
-        setPresenceLastSeenByUsername((prev) => {
-          const merged = { ...(prev || {}) };
-
-          Object.entries(nextLastSeen).forEach(([username, seenAt]) => {
-            merged[username] = seenAt;
-          });
-
-          return merged;
-        });
       }
     };
 
     setOnlineUsernames([normalizePresenceUsername(currentUser.username)].filter(Boolean));
-    setPresenceLastSeenByUsername((prev) => ({
-      ...(prev || {}),
-      [normalizePresenceUsername(currentUser.username)]: Date.now()
-    }));
+    touchCurrentUserOnlineAt();
 
     channel.on('presence', { event: 'sync' }, syncPresenceUsers);
     channel.subscribe(async (status) => {
@@ -791,12 +766,20 @@ export default function App() {
           console.error(error);
         }
 
+        await touchCurrentUserOnlineAt();
         syncPresenceUsers();
+        heartbeatTimer = window.setInterval(() => {
+          touchCurrentUserOnlineAt().catch((error) => console.error(error));
+        }, 60000);
       }
     });
 
     return () => {
       cancelled = true;
+      if (heartbeatTimer) {
+        window.clearInterval(heartbeatTimer);
+      }
+      touchCurrentUserOnlineAt().catch((error) => console.error(error));
       supabase.removeChannel(channel);
     };
   }, [currentUser?.username, currentUser?.displayName, currentUser?.avatar_url, currentUser?.email]);
@@ -1177,6 +1160,7 @@ export default function App() {
       bio: String(patch?.bio || '').trim(),
       status_message: String(patch?.status_message || '').trim(),
       avatar_url: String(patch?.avatar_url || '').trim(),
+      theme_mode: String(patch?.theme_mode || currentUser.theme_mode || 'system').trim() || 'system',
       updated_at: new Date().toISOString()
     };
 
@@ -1193,7 +1177,6 @@ export default function App() {
       );
       const nextCurrentUser = currentUser ? { ...currentUser, ...nextProfile } : currentUser;
       setCurrentUser(nextCurrentUser);
-      cacheAllowedUserProfile(nextCurrentUser);
       return nextCurrentUser;
     }
 
@@ -1201,7 +1184,7 @@ export default function App() {
       .from('allowed_users')
       .update(nextProfile)
       .eq('email', currentUser.email)
-      .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message')
+      .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode')
       .maybeSingle();
 
     if (error) {
@@ -1215,24 +1198,26 @@ export default function App() {
           avatar_url: data.avatar_url || '',
           updated_at: data.updated_at || nextProfile.updated_at,
           bio: data.bio || '',
-          status_message: data.status_message || ''
+          status_message: data.status_message || '',
+          theme_mode: data.theme_mode || nextProfile.theme_mode
         }
       : { ...currentUser, ...nextProfile };
 
     setAllowedUsers((previous) =>
       previous.map((user) =>
         user.username === currentUser.username
-          ? {
-              ...user,
-              ...nextProfile,
-              avatar_url: data?.avatar_url || nextProfile.avatar_url || '',
-              updated_at: data?.updated_at || nextProfile.updated_at
-            }
-          : user
+            ? {
+                ...user,
+                ...nextProfile,
+                avatar_url: data?.avatar_url || nextProfile.avatar_url || '',
+                updated_at: data?.updated_at || nextProfile.updated_at,
+                last_online_at: data?.last_online_at || user.last_online_at || '',
+                theme_mode: data?.theme_mode || nextProfile.theme_mode
+              }
+            : user
       )
     );
     setCurrentUser(normalized);
-    cacheAllowedUserProfile(normalized);
     try {
       await cleanupAvatarFolderForUser(normalized);
     } catch (cleanupError) {
@@ -1242,7 +1227,6 @@ export default function App() {
     setAllowedUsers(freshUsers);
     const refreshedCurrentUser = findAllowedUser(currentUser.username, freshUsers) || normalized;
     setCurrentUser(refreshedCurrentUser);
-    cacheAllowedUserProfile(refreshedCurrentUser);
     return refreshedCurrentUser;
   }
 
@@ -1426,7 +1410,6 @@ export default function App() {
           }
         : previous
     );
-    cacheAllowedUserProfile(nextCurrentUser);
 
     return {
       message: `Bevestigingsmail verstuurd naar ${maskEmail(nextEmail)}.`
@@ -2222,7 +2205,6 @@ export default function App() {
                 loading={authLoading}
                 allowedUsers={allowedUsers}
                 onlineUsernames={onlineUsernames}
-                presenceLastSeenByUsername={presenceLastSeenByUsername}
               />
             }
           />

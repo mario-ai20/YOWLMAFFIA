@@ -8,9 +8,13 @@ alter table public.allowed_users
 alter table public.allowed_users
   add column if not exists updated_at timestamptz not null default now();
 alter table public.allowed_users
+  add column if not exists last_online_at timestamptz;
+alter table public.allowed_users
   add column if not exists bio text not null default '';
 alter table public.allowed_users
   add column if not exists status_message text not null default '';
+alter table public.allowed_users
+  add column if not exists theme_mode text not null default 'system';
 alter table public.allowed_users
   drop column if exists do_not_disturb;
 
@@ -19,15 +23,27 @@ set
   accent = coalesce(accent, '#72d4ff'),
   avatar_url = coalesce(avatar_url, ''),
   updated_at = coalesce(updated_at, now()),
+  last_online_at = last_online_at,
   bio = coalesce(bio, ''),
-  status_message = coalesce(status_message, '');
+  status_message = coalesce(status_message, ''),
+  theme_mode = coalesce(theme_mode, 'system');
 
 create or replace function public.touch_allowed_users_updated_at()
 returns trigger
 language plpgsql
 as $$
 begin
-  new.updated_at = now();
+  if new.last_online_at is distinct from old.last_online_at
+    and new.accent is not distinct from old.accent
+    and new.avatar_url is not distinct from old.avatar_url
+    and new.bio is not distinct from old.bio
+    and new.status_message is not distinct from old.status_message
+    and new.theme_mode is not distinct from old.theme_mode
+  then
+    new.updated_at = old.updated_at;
+  else
+    new.updated_at = now();
+  end if;
   return new;
 end;
 $$;

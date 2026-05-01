@@ -12,8 +12,10 @@ create table if not exists public.allowed_users (
   accent text not null default '#72d4ff',
   avatar_url text not null default '',
   updated_at timestamptz not null default now(),
+  last_online_at timestamptz,
   bio text not null default '',
-  status_message text not null default ''
+  status_message text not null default '',
+  theme_mode text not null default 'system'
 );
 
 alter table public.allowed_users
@@ -23,9 +25,13 @@ alter table public.allowed_users
 alter table public.allowed_users
   add column if not exists updated_at timestamptz not null default now();
 alter table public.allowed_users
+  add column if not exists last_online_at timestamptz;
+alter table public.allowed_users
   add column if not exists bio text not null default '';
 alter table public.allowed_users
   add column if not exists status_message text not null default '';
+alter table public.allowed_users
+  add column if not exists theme_mode text not null default 'system';
 alter table public.allowed_users
   drop column if exists do_not_disturb;
 
@@ -34,7 +40,17 @@ returns trigger
 language plpgsql
 as $$
 begin
-  new.updated_at = now();
+  if new.last_online_at is distinct from old.last_online_at
+    and new.accent is not distinct from old.accent
+    and new.avatar_url is not distinct from old.avatar_url
+    and new.bio is not distinct from old.bio
+    and new.status_message is not distinct from old.status_message
+    and new.theme_mode is not distinct from old.theme_mode
+  then
+    new.updated_at = old.updated_at;
+  else
+    new.updated_at = now();
+  end if;
   return new;
 end;
 $$;
@@ -45,17 +61,18 @@ before update on public.allowed_users
 for each row
 execute function public.touch_allowed_users_updated_at();
 
-insert into public.allowed_users (username, email, display_name, accent, avatar_url)
+insert into public.allowed_users (username, email, display_name, accent, avatar_url, theme_mode)
 values
-  ('Mattiz', 'mattizhoornaert@hotmail.com', 'Mattiz', '#ff6b9c', ''),
-  ('Lukas', 'lukas.stevens@student.tsaam.be', 'Lukas', '#72d4ff', ''),
-  ('Yoshi', 'bastiaenssens.yoshi@gmail.com', 'Yoshi', '#a6ff7c', '')
+  ('Mattiz', 'mattizhoornaert@hotmail.com', 'Mattiz', '#ff6b9c', '', 'system'),
+  ('Lukas', 'lukas.stevens@student.tsaam.be', 'Lukas', '#72d4ff', '', 'system'),
+  ('Yoshi', 'bastiaenssens.yoshi@gmail.com', 'Yoshi', '#a6ff7c', '', 'system')
 on conflict (username) do update
 set
   email = excluded.email,
   display_name = excluded.display_name,
   accent = excluded.accent,
   avatar_url = coalesce(public.allowed_users.avatar_url, excluded.avatar_url),
+  theme_mode = coalesce(public.allowed_users.theme_mode, excluded.theme_mode),
   updated_at = now();
 
 grant select on table public.allowed_users to anon, authenticated;
