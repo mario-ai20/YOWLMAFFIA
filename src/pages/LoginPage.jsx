@@ -1,8 +1,10 @@
 import { ArrowLeft, KeyRound, LockKeyhole, LogIn, MailCheck, RefreshCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import BrandMark from '../components/BrandMark';
+import BuildBadge from '../components/BuildBadge';
 import InfoNoticeCard from '../components/InfoNoticeCard';
 import UpdateNoticeCard from '../components/UpdateNoticeCard';
+import { getBuildState, subscribeToBuildState } from '../utils/buildInfo';
 
 export default function LoginPage({
   stage = 'credentials',
@@ -29,6 +31,7 @@ export default function LoginPage({
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState('');
   const [recoveryError, setRecoveryError] = useState('');
+  const [buildNumber, setBuildNumber] = useState('dev');
 
   useEffect(() => {
     if (!forgotPasswordEnabled || isOtpStage || isRecoveryStage) {
@@ -51,6 +54,30 @@ export default function LoginPage({
       setForgotError('');
     }
   }, [forgotOpen]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function bootstrapBuildState() {
+      const initial = await getBuildState();
+      if (mounted && initial) {
+        setBuildNumber(initial.buildNumber || 'dev');
+      }
+    }
+
+    bootstrapBuildState();
+
+    const unsubscribe = subscribeToBuildState((nextState) => {
+      if (mounted && nextState) {
+        setBuildNumber(nextState.buildNumber || 'dev');
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   async function handleForgotPasswordSubmit(event) {
     event.preventDefault();
@@ -163,6 +190,7 @@ export default function LoginPage({
 
           <InfoNoticeCard compact className="login-page__info" />
           <UpdateNoticeCard compact className="login-page__update" />
+          <BuildBadge buildNumber={buildNumber} className="login-page__build" />
 
           {!isOtpStage && !isRecoveryStage ? (
             <>
@@ -180,14 +208,14 @@ export default function LoginPage({
 
               <label className="field">
                 <span>Wachtwoord</span>
-                <input
-                  className="input input--password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  required
-                />
+              <input
+                className="input input--password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
               </label>
             </>
           ) : null}
@@ -295,9 +323,9 @@ export default function LoginPage({
                     : 'Inloggen...'
                 : isOtpStage
                   ? 'Code verifiëren'
-                  : isRecoveryStage
-                    ? 'Wachtwoord opslaan'
-                    : 'Inloggen'}
+                : isRecoveryStage
+                  ? 'Wachtwoord opslaan'
+                  : 'Inloggen'}
             </button>
           </div>
         </form>

@@ -429,6 +429,26 @@ a {
   gap: 1.4rem;
 }
 
+.login-page__build {
+  width: fit-content;
+}
+
+.build-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
 .login-page__hero {
   display: flex;
   align-items: center;
@@ -687,6 +707,23 @@ a {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(16px);
+}
+
+.app-shell__version {
+  justify-self: end;
+  align-self: end;
+  margin-right: 0.15rem;
+  margin-top: -0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  width: fit-content;
 }
 
 .app-shell__nav {

@@ -2,7 +2,7 @@ import { Bell, Library, LogOut, LayoutDashboard, MessagesSquare, ShieldEllipsis 
 import { NavLink } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
-import { getAppVersion } from '../utils/yowl';
+import { getBuildState, subscribeToBuildState } from '../utils/buildInfo';
 import SettingsMenu from './SettingsMenu';
 import { normalizeUsername } from '../utils/users';
 import UserAvatar from './UserAvatar';
@@ -29,7 +29,7 @@ export default function AppShell({
   onEmailChange,
   children
 }) {
-  const [appVersion, setAppVersion] = useState('dev');
+  const [buildNumber, setBuildNumber] = useState('dev');
   const [themeMode, setThemeMode] = useState(user?.theme_mode || 'system');
   const [nowTick, setNowTick] = useState(() => Date.now());
   const isMattiz = normalizeUsername(user?.username) === 'mattiz';
@@ -48,20 +48,24 @@ export default function AppShell({
   useEffect(() => {
     let mounted = true;
 
-    getAppVersion()
-      .then((version) => {
-        if (mounted) {
-          setAppVersion(version || 'dev');
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          setAppVersion('dev');
-        }
-      });
+    async function bootstrapBuildState() {
+      const initial = await getBuildState();
+      if (mounted && initial) {
+        setBuildNumber(initial.buildNumber || 'dev');
+      }
+    }
+
+    bootstrapBuildState();
+
+    const unsubscribe = subscribeToBuildState((nextState) => {
+      if (mounted && nextState) {
+        setBuildNumber(nextState.buildNumber || 'dev');
+      }
+    });
 
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, []);
 
@@ -174,7 +178,7 @@ export default function AppShell({
         </div>
       </header>
 
-      <div className="app-shell__version">Build {appVersion}</div>
+      <div className="app-shell__version">Build {buildNumber}</div>
 
       <main className="app-shell__main">{children}</main>
     </div>

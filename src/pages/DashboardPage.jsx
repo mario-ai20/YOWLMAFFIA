@@ -6,6 +6,7 @@ import UpdateNoticeCard from '../components/UpdateNoticeCard';
 import MusicReleaseCard from '../components/MusicReleaseCard';
 import UserAvatar from '../components/UserAvatar';
 import { createDefaultCoverDataUrl } from '../utils/defaultCover';
+import { getBuildState, saveBuildState, subscribeToBuildState } from '../utils/buildInfo';
 import { formatRelativeTime } from '../utils/dates';
 import { createSpotifySearchUrl } from '../utils/musicReleases';
 import { normalizeUsername } from '../utils/users';
@@ -79,6 +80,10 @@ export default function DashboardPage({
   const [infoActive, setInfoActive] = useState(true);
   const [infoBusy, setInfoBusy] = useState(false);
   const [infoMessage, setInfoMessage] = useState('');
+  const [buildState, setBuildState] = useState(null);
+  const [buildNumber, setBuildNumber] = useState('');
+  const [buildBusy, setBuildBusy] = useState(false);
+  const [buildMessage, setBuildMessage] = useState('');
   const [updateState, setUpdateState] = useState(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
@@ -175,6 +180,36 @@ export default function DashboardPage({
     };
   }, [canManageTools]);
 
+  useEffect(() => {
+    if (!canManageTools) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function bootstrapBuildState() {
+      const initial = await getBuildState();
+      if (!cancelled && initial) {
+        setBuildState(initial);
+        setBuildNumber(initial.buildNumber || '');
+      }
+    }
+
+    bootstrapBuildState();
+
+    const unsubscribe = subscribeToBuildState((nextState) => {
+      if (!cancelled && nextState) {
+        setBuildState(nextState);
+        setBuildNumber(nextState.buildNumber || '');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [canManageTools]);
+
   async function handleSendAnnouncement(event) {
     event.preventDefault();
 
@@ -202,6 +237,38 @@ export default function DashboardPage({
       setAnnouncementMessage(error instanceof Error ? error.message : 'Melding versturen mislukt.');
     } finally {
       setAnnouncementBusy(false);
+    }
+  }
+
+  async function handlePublishBuild(event) {
+    event.preventDefault();
+
+    if (!canManageTools || buildBusy) {
+      return;
+    }
+
+    const nextBuildNumber = buildNumber.trim();
+    if (!nextBuildNumber) {
+      setBuildMessage('Geef eerst een buildnummer op.');
+      return;
+    }
+
+    setBuildBusy(true);
+    setBuildMessage('');
+
+    try {
+      const result = await saveBuildState({ buildNumber: nextBuildNumber });
+      setBuildState(result);
+      setBuildNumber(result?.buildNumber || nextBuildNumber);
+      setBuildMessage(result?.message || 'Buildnummer opgeslagen.');
+    } catch (error) {
+      setBuildMessage(
+        error && typeof error === 'object' && ('message' in error || 'error_description' in error)
+          ? String(error.message || error.error_description)
+          : 'Buildnummer opslaan mislukt.'
+      );
+    } finally {
+      setBuildBusy(false);
     }
   }
 
@@ -585,6 +652,38 @@ export default function DashboardPage({
         <aside className="dashboard-page__sidebar">
           {isManagePage ? (
             <>
+              <section className="panel dashboard-feed">
+                <div className="panel__header">
+                  <span className="eyebrow">Build</span>
+                  <h2>
+                    <Sparkles size={16} />
+                    Buildnummer
+                  </h2>
+                </div>
+
+                <form className="settings-menu__publish" onSubmit={handlePublishBuild}>
+                  <label className="field settings-menu__field">
+                    <span>Buildnummer</span>
+                    <input
+                      className="input"
+                      value={buildNumber}
+                      onChange={(event) => setBuildNumber(event.target.value)}
+                      placeholder="Bijvoorbeeld 2.2.0"
+                    />
+                    <small className="settings-menu__hint">
+                      Huidig online buildnummer: {buildState?.buildNumber || 'nog niet ingesteld'}
+                    </small>
+                  </label>
+
+                  <button className="button button--primary button--full" type="submit" disabled={buildBusy}>
+                    <PencilLine size={16} />
+                    {buildBusy ? 'Opslaan...' : 'Buildnummer opslaan'}
+                  </button>
+
+                  {buildMessage ? <p className="settings-menu__message">{buildMessage}</p> : null}
+                </form>
+              </section>
+
               <section className="panel dashboard-feed">
                 <div className="panel__header">
                   <span className="eyebrow">Info</span>
