@@ -10,7 +10,6 @@ import {
   resolveAvatarUrl,
   resolveUserFromSession
 } from './utils/users';
-import { getDemoSongs } from './utils/demoSongs';
 import { loadMusicReleases as loadMusicReleasesFromDatabase, normalizeMusicRelease } from './utils/musicReleases';
 import { normalizeSongStatus } from './utils/songStatus';
 import { compareVersions } from './utils/version';
@@ -22,9 +21,6 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const SetupNotice = lazy(() => import('./components/SetupNotice'));
-
-const isProduction = import.meta.env.PROD;
-const allowOfflineDemo = !isProduction;
 
 function sanitizeSegment(value) {
   return String(value || '')
@@ -247,9 +243,8 @@ function EditorRoute(props) {
       setLoadingSong(true);
 
       if (!isSupabaseConfigured || !supabase) {
-        const demoSong = getDemoSongs().find((song) => song.id === songId) || null;
         if (!cancelled) {
-          setResolvedSong(demoSong);
+          setResolvedSong(null);
           setLoadingSong(false);
         }
         return;
@@ -414,14 +409,8 @@ export default function App() {
     setSongsLoading(true);
 
     if (!isSupabaseConfigured || !supabase) {
-      if (!allowOfflineDemo) {
-        setSongs([]);
-        setSongsLoading(false);
-        return;
-      }
-
-      setSongs(getDemoSongs());
       setSongsLoading(false);
+      setSongs([]);
       return;
     }
 
@@ -441,12 +430,6 @@ export default function App() {
     setMusicReleasesLoading(true);
 
     if (!isSupabaseConfigured || !supabase) {
-      if (!allowOfflineDemo) {
-        setMusicReleases([]);
-        setMusicReleasesLoading(false);
-        return;
-      }
-
       setMusicReleases([]);
       setMusicReleasesLoading(false);
       return;
@@ -915,21 +898,7 @@ export default function App() {
     }
 
     if (!isSupabaseConfigured || !supabase) {
-      if (!allowOfflineDemo) {
-        setAuthError('Supabase is niet gekoppeld. Vul de online instellingen in en bouw opnieuw.');
-        return;
-      }
-
-      if (!password.trim()) {
-        setAuthError('Vul een wachtwoord in om door te gaan.');
-        return;
-      }
-
-      setLoginFailedAttempts(0);
-      setCurrentUser(user);
-      setSession({ user: { email: user.email, id: `local-${user.username}` } });
-      resetLoginFlow();
-      navigate('/dashboard');
+      setAuthError('Supabase is niet gekoppeld. De app werkt alleen nog online.');
       return;
     }
 
@@ -1430,14 +1399,7 @@ export default function App() {
     setCreateSongBusy(true);
     try {
       if (!supabase) {
-        if (!allowOfflineDemo) {
-          return;
-        }
-
-        const demoSong = getDemoSongs()[0];
-        setCreateSongOpen(false);
-        navigate(`/editor/${demoSong.id}`);
-        return;
+        throw new Error('Supabase is niet gekoppeld. Song maken werkt alleen online.');
       }
 
       const { data, error } = await supabase
@@ -1503,22 +1465,7 @@ export default function App() {
 
   async function handleSaveSong(songId, patch) {
     if (!supabase) {
-      if (!allowOfflineDemo) {
-        return;
-      }
-
-      setSongs((previous) =>
-        previous.map((song) =>
-          song.id === songId
-            ? {
-                ...song,
-                ...patch,
-                updated_at: new Date().toISOString()
-              }
-            : song
-        )
-      );
-      return;
+      throw new Error('Supabase is niet gekoppeld. Song opslaan werkt alleen online.');
     }
 
     const { error } = await supabase
@@ -1565,13 +1512,7 @@ export default function App() {
     }
 
     if (!supabase) {
-      if (!allowOfflineDemo) {
-        return;
-      }
-
-      setSongs((previous) => previous.filter((song) => song.id !== songId));
-      navigate('/dashboard');
-      return;
+      throw new Error('Supabase is niet gekoppeld. Song verwijderen werkt alleen online.');
     }
 
     const { error } = await supabase.from('songs').delete().eq('id', songId);
@@ -1965,14 +1906,7 @@ export default function App() {
     const path = fixedPath || `${folder}/${crypto.randomUUID()}-${safeName}`;
 
     if (!supabase) {
-      if (!allowOfflineDemo) {
-        throw new Error('Supabase is niet gekoppeld.');
-      }
-
-      return {
-        url: URL.createObjectURL(file),
-        path
-      };
+      throw new Error('Supabase is niet gekoppeld. Bestanden uploaden werkt alleen online.');
     }
 
     if (hasDesktopStorageBridge() && session?.access_token && supabaseUrl && supabaseAnonKey) {
