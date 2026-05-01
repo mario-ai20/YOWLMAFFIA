@@ -198,6 +198,19 @@ a {
   padding: 0 1rem;
 }
 
+.input--password {
+  font-size: 1.55rem;
+  letter-spacing: 0.28em;
+  font-family: 'Segoe UI', 'Manrope', system-ui, sans-serif;
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
+.input--password::placeholder {
+  letter-spacing: 0.08em;
+  font-size: 1rem;
+}
+
 .lyrics-editor__textarea {
   min-height: 100%;
   padding: 1.2rem;

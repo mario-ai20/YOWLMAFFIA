@@ -285,6 +285,7 @@ async function createWindow() {
     fullscreen: true,
     kiosk: true,
     frame: false,
+    thickFrame: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: false,
     title: 'YOWLMAFFIA',
@@ -292,7 +293,7 @@ async function createWindow() {
     backgroundColor: '#090b14',
     autoHideMenuBar: true,
     show: false,
-    fullscreenable: true,
+    fullscreenable: false,
     resizable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -314,6 +315,8 @@ async function createWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setFullScreen(true);
       mainWindow.setKiosk(true);
+      mainWindow.maximize();
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
       mainWindow.show();
     }
   });
@@ -321,18 +324,30 @@ async function createWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setFullScreen(true);
       mainWindow.setKiosk(true);
+      mainWindow.maximize();
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   });
   mainWindow.on('unmaximize', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setFullScreen(true);
       mainWindow.setKiosk(true);
+      mainWindow.maximize();
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   });
   mainWindow.on('maximize', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setFullScreen(true);
       mainWindow.setKiosk(true);
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+  mainWindow.on('blur', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(true);
+      mainWindow.setKiosk(true);
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   });
   mainWindow.webContents.on('before-input-event', (event, input) => {

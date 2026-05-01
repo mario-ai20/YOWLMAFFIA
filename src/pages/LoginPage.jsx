@@ -150,7 +150,7 @@ export default function LoginPage({
                 ? 'We sturen een eenmalige code naar je mailbox. Die moet je invullen voordat je de app mag openen.'
                 : isRecoveryStage
                   ? 'Kies een nieuw wachtwoord voor je YOWLMAFFIA-account.'
-                  : 'Werk samen aan songs, lyrics en tracks in ??n online omgeving.'}
+                  : 'Werk samen aan songs, lyrics en tracks in één online omgeving.'}
             </p>
             <p className="login-form__lead">
               {isOtpStage
@@ -181,10 +181,10 @@ export default function LoginPage({
               <label className="field">
                 <span>Wachtwoord</span>
                 <input
-                  className="input"
+                  className="input input--password"
                   name="password"
                   type="password"
-                  placeholder="????????"
+                  placeholder="••••••••"
                   autoComplete="current-password"
                   required
                 />
@@ -212,7 +212,7 @@ export default function LoginPage({
               <label className="field">
                 <span>Nieuw wachtwoord</span>
                 <input
-                  className="input"
+                  className="input input--password"
                   name="newPassword"
                   type="password"
                   placeholder="Kies een nieuw wachtwoord"
@@ -226,7 +226,7 @@ export default function LoginPage({
               <label className="field">
                 <span>Herhaal wachtwoord</span>
                 <input
-                  className="input"
+                  className="input input--password"
                   name="confirmPassword"
                   type="password"
                   placeholder="Herhaal je nieuwe wachtwoord"
