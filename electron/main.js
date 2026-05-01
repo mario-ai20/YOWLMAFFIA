@@ -283,6 +283,7 @@ async function createWindow() {
     minWidth: 1220,
     minHeight: 820,
     fullscreen: true,
+    kiosk: true,
     frame: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: false,
@@ -290,7 +291,7 @@ async function createWindow() {
     icon: appIconPath,
     backgroundColor: '#090b14',
     autoHideMenuBar: true,
-    show: true,
+    show: false,
     fullscreenable: true,
     resizable: true,
     webPreferences: {
@@ -309,6 +310,31 @@ async function createWindow() {
   }
 
   mainWindow.setMenuBarVisibility(false);
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(true);
+      mainWindow.setKiosk(true);
+      mainWindow.show();
+    }
+  });
+  mainWindow.on('leave-full-screen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(true);
+      mainWindow.setKiosk(true);
+    }
+  });
+  mainWindow.on('unmaximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(true);
+      mainWindow.setKiosk(true);
+    }
+  });
+  mainWindow.on('maximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(true);
+      mainWindow.setKiosk(true);
+    }
+  });
   mainWindow.webContents.on('before-input-event', (event, input) => {
     const isDevtoolsShortcut =
       input.key === 'F12' ||
