@@ -1585,10 +1585,20 @@ a {
 }
 
 .app-shell__version {
-  justify-self: end;
-  font-size: 0.78rem;
-  color: var(--muted);
-  padding-right: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.28rem 0.68rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .app-shell__main {

@@ -145,6 +145,10 @@ export default function AppShell({
             <div className="app-shell__clock" aria-label={`Huidige datum en tijd: ${headerDateTime}`}>
               <span>{headerDateTime}</span>
             </div>
+
+            <div className="app-shell__version" aria-label={`Huidige buildversie: ${buildNumber}`}>
+              Build {buildNumber}
+            </div>
           </div>
 
           <div className="app-shell__user-row">
@@ -177,8 +181,6 @@ export default function AppShell({
           </div>
         </div>
       </header>
-
-      <div className="app-shell__version">Build {buildNumber}</div>
 
       <main className="app-shell__main">{children}</main>
     </div>
