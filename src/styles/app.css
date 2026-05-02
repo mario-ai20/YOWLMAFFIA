@@ -3077,6 +3077,19 @@ a {
   padding: 1rem;
 }
 
+.public-dashboard__releases-header {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  align-items: center;
+  text-align: center;
+  gap: 0.2rem;
+}
+
+.public-dashboard__releases-header h2 {
+  margin: 0;
+}
+
 .public-dashboard__meta {
   display: flex;
   flex-wrap: wrap;

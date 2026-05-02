@@ -79,7 +79,7 @@ export default function PublicShell({
   return (
     <div className="public-shell">
       <header className="public-shell__header">
-        <BrandMark />
+        <BrandMark subtitle="" />
 
         <nav className="public-shell__nav">
           <NavLink end to="/public/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>

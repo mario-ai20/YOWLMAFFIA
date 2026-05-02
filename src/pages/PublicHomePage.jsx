@@ -242,11 +242,11 @@ export default function PublicHomePage() {
       <div className="public-page__shell">
         <header className="public-page__hero panel">
           <div className="public-page__hero-brand">
-            <BrandMark stacked />
+            <BrandMark stacked subtitle="" />
             <div>
               <span className="eyebrow">Open community</span>
               <h1>YOWLMAFFIA</h1>
-              <p>Een publieke omgeving om te praten, delen en samen muziek te volgen. Alles draait online via Supabase.</p>
+              <p>Een publieke omgeving om te praten, delen en samen muziek te volgen.</p>
             </div>
           </div>
 

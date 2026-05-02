@@ -1,4 +1,4 @@
-import { ArrowRight, Music2, RefreshCw, Sparkles } from 'lucide-react';
+import { Music2, RefreshCw, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import BrandMark from '../components/BrandMark';
@@ -207,11 +207,11 @@ export default function PublicDashboardPage() {
       <section className="public-dashboard">
         <header className="public-dashboard__hero panel">
           <div className="public-dashboard__hero-brand">
-            <BrandMark stacked />
+            <BrandMark stacked subtitle="" />
             <div>
               <span className="eyebrow">Open community</span>
               <h1>YOWLMAFFIA publiek dashboard</h1>
-              <p>Hier zie je de info, regels, releases en updates van de publieke kant. Alles draait online via Supabase.</p>
+              <p>Hier zie je de info, regels, releases en updates van de publieke kant.</p>
             </div>
           </div>
 
@@ -234,24 +234,19 @@ export default function PublicDashboardPage() {
         </div>
 
         <section className="panel public-dashboard__releases">
-          <div className="panel__header panel__header--compact">
-            <span className="eyebrow">Songs</span>
-            <h2>Publieke Spotify-banners</h2>
-            <Link className="button button--ghost button--compact" to="/public/chat">
-              <ArrowRight size={16} />
-              Reacties in chat
-            </Link>
+          <div className="panel__header panel__header--compact public-dashboard__releases-header">
+            <h2>Songs</h2>
           </div>
 
           {!isPublicChatSupabaseConfigured ? (
             <div className="empty-state empty-state--compact">
               <strong>Public Supabase is nog niet gekoppeld.</strong>
-              <p>Koppel eerst de public database om releases te tonen.</p>
+              <p>Koppel eerst de public database om songs te tonen.</p>
             </div>
           ) : loadingPage ? (
             <div className="empty-state empty-state--compact">
               <strong>Releases laden...</strong>
-              <p>We halen de publieke muziekkaarten uit Supabase.</p>
+              <p>We laden de publieke muziekkaarten.</p>
             </div>
           ) : musicReleases.length ? (
             <div className="music-release-grid music-release-grid--compact">
@@ -262,7 +257,7 @@ export default function PublicDashboardPage() {
           ) : (
             <div className="empty-state empty-state--compact">
               <strong>Nog geen releases</strong>
-              <p>Mattiz kan hier later de publieke Spotify-banners vullen.</p>
+              <p>Mattiz kan hier later songs toevoegen.</p>
             </div>
           )}
         </section>
