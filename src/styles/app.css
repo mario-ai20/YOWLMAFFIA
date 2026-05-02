@@ -1187,6 +1187,18 @@ a {
   justify-content: space-between;
 }
 
+.settings-menu__toggle-copy {
+  display: grid;
+  gap: 0.12rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-menu__toggle-copy span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .settings-menu__toggle input[type='checkbox'] {
   width: 16px;
   height: 16px;

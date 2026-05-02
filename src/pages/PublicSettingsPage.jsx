@@ -1,4 +1,4 @@
-import { Camera, Check, Mail, ShieldCheck, Trash2, Upload, UserCircle2 } from 'lucide-react';
+import { Camera, Check, Mail, Trash2, UserCircle2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import PublicShell from '../components/PublicShell';
@@ -43,6 +43,7 @@ export default function PublicSettingsPage() {
   const [gender, setGender] = useState('zeg ik liever niet');
   const [themeMode, setThemeMode] = useState('system');
   const [email, setEmail] = useState('');
+  const [emailMfaEnabled, setEmailMfaEnabled] = useState(true);
 
   useEffect(() => {
     if (!publicChatSupabase) {
@@ -97,8 +98,9 @@ export default function PublicSettingsPage() {
     setGender(currentUser.gender || 'zeg ik liever niet');
     setThemeMode(currentUser.theme_mode || 'system');
     setEmail(currentUser.email || '');
+    setEmailMfaEnabled(currentUser.email_mfa_enabled !== false);
     setAvatarPreview(currentUser.avatar_url || '');
-  }, [currentUser?.username, currentUser?.updated_at]);
+  }, [currentUser?.username, currentUser?.updated_at, currentUser?.email_mfa_enabled]);
 
   useEffect(() => {
     if (!avatarFile) {
@@ -242,7 +244,8 @@ export default function PublicSettingsPage() {
         theme_mode: themeMode,
         avatar_url: avatarUrl,
         updated_at: nextUpdatedAt,
-        last_online_at: currentUser.last_online_at || nextUpdatedAt
+        last_online_at: currentUser.last_online_at || nextUpdatedAt,
+        email_mfa_enabled: emailMfaEnabled
       };
 
       const { error } = await publicChatSupabase.from('allowed_users').upsert(payload, {
@@ -377,6 +380,19 @@ export default function PublicSettingsPage() {
                 <input className="input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
               </div>
             </label>
+
+            <div className={`settings-menu__toggle ${emailMfaEnabled ? 'is-active' : ''}`}>
+              <div className="settings-menu__toggle-copy">
+                <strong>MFA via mail</strong>
+                <span>Vraag na je wachtwoord een code per e-mail.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={emailMfaEnabled}
+                onChange={(event) => setEmailMfaEnabled(event.target.checked)}
+                aria-label="MFA via mail voor de public chat"
+              />
+            </div>
 
             <div className="public-settings__actions">
               <button className="button button--primary" type="submit" disabled={saving}>

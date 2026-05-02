@@ -14,6 +14,8 @@ alter table public.allowed_users
 alter table public.allowed_users
   add column if not exists status_message text not null default '';
 alter table public.allowed_users
+  add column if not exists email_mfa_enabled boolean not null default true;
+alter table public.allowed_users
   add column if not exists theme_mode text not null default 'system';
 alter table public.allowed_users
   drop column if exists do_not_disturb;
@@ -26,6 +28,7 @@ set
   last_online_at = last_online_at,
   bio = coalesce(bio, ''),
   status_message = coalesce(status_message, ''),
+  email_mfa_enabled = coalesce(email_mfa_enabled, true),
   theme_mode = coalesce(theme_mode, 'system');
 
 create or replace function public.touch_allowed_users_updated_at()
@@ -38,6 +41,7 @@ begin
     and new.avatar_url is not distinct from old.avatar_url
     and new.bio is not distinct from old.bio
     and new.status_message is not distinct from old.status_message
+    and new.email_mfa_enabled is not distinct from old.email_mfa_enabled
     and new.theme_mode is not distinct from old.theme_mode
   then
     new.updated_at = old.updated_at;

@@ -1,8 +1,8 @@
-import { ArrowRight, Shield } from 'lucide-react';
+import { ArrowRight, RefreshCw, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import BrandMark from '../components/BrandMark';
 import { publicChatSupabase, isPublicChatSupabaseConfigured } from '../utils/supabase';
-import { loadPublicAllowedUsers, publicUsernameToEmail } from '../utils/publicUsers';
+import { loadPublicAllowedUsers, publicUsernameToEmail, resolvePublicUserFromSession } from '../utils/publicUsers';
 import { useNavigate } from 'react-router';
 
 function InfoBlock({ eyebrow, title, body }) {
@@ -23,6 +23,10 @@ export default function PublicHomePage() {
   const [publicUsers, setPublicUsers] = useState([]);
   const [loginIdentity, setLoginIdentity] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginStage, setLoginStage] = useState('credentials');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginCode, setLoginCode] = useState('');
+  const [loginHint, setLoginHint] = useState('');
   const [registerUsername, setRegisterUsername] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerBirthDate, setRegisterBirthDate] = useState('');
@@ -93,6 +97,36 @@ export default function PublicHomePage() {
     }
   }, [forgotOpen]);
 
+  useEffect(() => {
+    if (view !== 'login') {
+      setLoginStage('credentials');
+      setLoginEmail('');
+      setLoginCode('');
+      setLoginHint('');
+    }
+  }, [view]);
+
+  function maskEmail(emailAddress = '') {
+    const value = String(emailAddress || '').trim();
+    if (!value.includes('@')) {
+      return value;
+    }
+
+    const [local, domain] = value.split('@');
+    const [host, ...rest] = domain.split('.');
+    const maskedLocal = local.length <= 2 ? `${local.slice(0, 1)}*` : `${local.slice(0, 2)}***`;
+    const maskedHost = host.length <= 1 ? `${host.slice(0, 1)}*` : `${host.slice(0, 1)}***`;
+
+    return `${maskedLocal}@${maskedHost}${rest.length ? `.${rest.join('.')}` : ''}`;
+  }
+
+  function resetLoginFlow() {
+    setLoginStage('credentials');
+    setLoginEmail('');
+    setLoginCode('');
+    setLoginHint('');
+  }
+
   async function handleLoginSubmit(event) {
     event.preventDefault();
 
@@ -124,10 +158,120 @@ export default function PublicHomePage() {
         throw result.error;
       }
 
-      setMessage('Je bent ingelogd. De publieke chat opent nu.');
-      navigate('/public/dashboard');
+      const resolvedUser = resolvePublicUserFromSession(result.data?.session || null, publicUsers);
+      const requiresEmailMfa = resolvedUser?.email_mfa_enabled !== false;
+
+      setLoginFailedAttempts(0);
+
+      if (!requiresEmailMfa) {
+        setMessage('Je bent ingelogd. De publieke chat opent nu.');
+        setLoginPassword('');
+        resetLoginFlow();
+        navigate('/public/dashboard');
+        return;
+      }
+
+      await publicChatSupabase.auth.signOut();
+
+      const { error: otpError } = await publicChatSupabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
+
+      if (otpError) {
+        throw otpError;
+      }
+
+      setLoginStage('otp');
+      setLoginEmail(email);
+      setLoginCode('');
+      setLoginPassword('');
+      setLoginHint(`We hebben een inlogcode gestuurd naar ${maskEmail(email)}.`);
+      setMessage('');
     } catch (formError) {
       setError(formError instanceof Error ? formError.message : 'Inloggen mislukt.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifyLoginCode(event) {
+    event.preventDefault();
+
+    if (!publicChatSupabase) {
+      setError('Supabase is nog niet gekoppeld voor de public chat.');
+      return;
+    }
+
+    const nextCode = String(loginCode || '').trim();
+    if (!nextCode) {
+      setError('Vul de code in die je per mail kreeg.');
+      return;
+    }
+
+    if (!loginEmail) {
+      setError('We missen je e-mailadres. Log opnieuw in.');
+      resetLoginFlow();
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const { data, error } = await publicChatSupabase.auth.verifyOtp({
+        email: loginEmail,
+        token: nextCode,
+        type: 'email'
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setLoginFailedAttempts(0);
+      resetLoginFlow();
+      navigate('/public/dashboard');
+    } catch (formError) {
+      setError(formError instanceof Error ? formError.message : 'De code klopt niet of is verlopen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResendLoginCode() {
+    if (!publicChatSupabase) {
+      setError('Supabase is nog niet gekoppeld voor de public chat.');
+      return;
+    }
+
+    if (!loginEmail) {
+      setError('Log eerst opnieuw in om een nieuwe code te sturen.');
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const { error } = await publicChatSupabase.auth.signInWithOtp({
+        email: loginEmail,
+        options: {
+          shouldCreateUser: false
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setLoginHint(`We stuurden een nieuwe code naar ${maskEmail(loginEmail)}.`);
+    } catch (formError) {
+      setError(formError instanceof Error ? formError.message : 'We konden geen nieuwe code sturen.');
     } finally {
       setBusy(false);
     }
@@ -179,6 +323,7 @@ export default function PublicHomePage() {
         status_message: '',
         gender: 'zeg ik liever niet',
         theme_mode: 'system',
+        email_mfa_enabled: true,
         avatar_url: '',
         updated_at: new Date().toISOString(),
         last_online_at: new Date().toISOString()
@@ -196,6 +341,7 @@ export default function PublicHomePage() {
       setView('login');
       setLoginIdentity(registerEmail.trim());
       setLoginPassword('');
+      resetLoginFlow();
     } catch (formError) {
       setError(formError instanceof Error ? formError.message : 'Account aanmaken mislukt.');
     } finally {
@@ -317,6 +463,36 @@ export default function PublicHomePage() {
             </form>
           ) : (
             <form className="public-auth-form" onSubmit={handleLoginSubmit}>
+              {loginStage === 'otp' ? (
+                <div className="public-auth-form__forgot">
+                  <p className="muted-copy">{loginHint || `We hebben een inlogcode gestuurd naar ${maskEmail(loginEmail)}.`}</p>
+                  <label className="field">
+                    <span>Inlogcode</span>
+                    <input
+                      className="input"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={loginCode}
+                      onChange={(event) => setLoginCode(event.target.value)}
+                      placeholder="Typ de code uit je e-mail"
+                      required
+                    />
+                  </label>
+                  <div className="login-form__actions login-reset__actions">
+                    <button className="button button--ghost" type="button" disabled={busy} onClick={resetLoginFlow}>
+                      Terug
+                    </button>
+                    <button className="button button--ghost" type="button" disabled={busy} onClick={() => void handleResendLoginCode()}>
+                      <RefreshCw size={16} />
+                      Code opnieuw sturen
+                    </button>
+                  </div>
+                  <button className="button button--primary button--full" type="button" onClick={(event) => void handleVerifyLoginCode(event)} disabled={busy}>
+                    {busy ? 'Verifiëren...' : 'Code verifiëren'}
+                  </button>
+                </div>
+              ) : (
+                <>
               <label className="field">
                 <span>E-mail of username</span>
                 <input className="input" value={loginIdentity} onChange={(event) => setLoginIdentity(event.target.value)} placeholder="Typ je e-mail of username" required />
@@ -355,6 +531,8 @@ export default function PublicHomePage() {
               <button className="button button--primary button--full" type="submit" disabled={busy}>
                 {busy ? 'Inloggen...' : 'Inloggen'}
               </button>
+                </>
+              )}
             </form>
           )}
 

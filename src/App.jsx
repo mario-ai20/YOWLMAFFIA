@@ -932,7 +932,7 @@ export default function App() {
     setLoginBusy(true);
 
     try {
-      const { error: passwordError } = await supabase.auth.signInWithPassword({
+      const { data: passwordData, error: passwordError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password
       });
@@ -949,6 +949,16 @@ export default function App() {
       }
 
       setLoginFailedAttempts(0);
+
+      if (user.email_mfa_enabled === false) {
+        const resolvedUser = resolveUserFromSession(passwordData?.session || null, allowedUsers) || user;
+        setSession(passwordData?.session || null);
+        setCurrentUser(resolvedUser);
+        resetLoginFlow();
+        navigate('/dashboard');
+        return;
+      }
+
       await supabase.auth.signOut();
 
       const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -1156,6 +1166,8 @@ export default function App() {
       status_message: String(patch?.status_message || '').trim(),
       avatar_url: String(patch?.avatar_url || '').trim(),
       theme_mode: String(patch?.theme_mode || currentUser.theme_mode || 'system').trim() || 'system',
+      email_mfa_enabled:
+        patch?.email_mfa_enabled === undefined ? currentUser.email_mfa_enabled !== false : Boolean(patch.email_mfa_enabled),
       updated_at: new Date().toISOString()
     };
 
@@ -1177,11 +1189,11 @@ export default function App() {
 
       const matchFilter = getCurrentUserMatchFilter(currentUser);
 
-      const { data, error } = await supabase
+    const { data, error } = await supabase
         .from('allowed_users')
         .update(nextProfile)
         .eq(matchFilter?.column || 'email', matchFilter?.value || currentUser.email)
-        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode')
+        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode, email_mfa_enabled')
         .maybeSingle();
 
     if (error) {
@@ -1196,7 +1208,9 @@ export default function App() {
           updated_at: data.updated_at || nextProfile.updated_at,
           bio: data.bio || '',
           status_message: data.status_message || '',
-          theme_mode: data.theme_mode || nextProfile.theme_mode
+          theme_mode: data.theme_mode || nextProfile.theme_mode,
+          email_mfa_enabled:
+            data.email_mfa_enabled === undefined ? nextProfile.email_mfa_enabled : Boolean(data.email_mfa_enabled)
         }
       : { ...currentUser, ...nextProfile };
 
@@ -1209,7 +1223,9 @@ export default function App() {
                 avatar_url: data?.avatar_url || nextProfile.avatar_url || '',
                 updated_at: data?.updated_at || nextProfile.updated_at,
                 last_online_at: data?.last_online_at || user.last_online_at || '',
-                theme_mode: data?.theme_mode || nextProfile.theme_mode
+                theme_mode: data?.theme_mode || nextProfile.theme_mode,
+                email_mfa_enabled:
+                  data?.email_mfa_enabled === undefined ? nextProfile.email_mfa_enabled : Boolean(data?.email_mfa_enabled)
               }
             : user
       )
@@ -1356,18 +1372,18 @@ export default function App() {
       throw new Error(error.message || 'E-mailadres wijzigen mislukt.');
     }
 
-    const nextProfile = {
-      email: nextEmail,
-      updated_at: new Date().toISOString()
-    };
+      const nextProfile = {
+        email: nextEmail,
+        updated_at: new Date().toISOString()
+      };
 
-      const matchFilter = getCurrentUserMatchFilter(currentUser);
+    const matchFilter = getCurrentUserMatchFilter(currentUser);
 
-      const { data, error: updateError } = await supabase
+    const { data, error: updateError } = await supabase
         .from('allowed_users')
         .update(nextProfile)
         .eq(matchFilter?.column || 'username', matchFilter?.value || currentUser.username)
-        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message')
+        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode, email_mfa_enabled')
         .maybeSingle();
 
     if (updateError) {
@@ -1378,12 +1394,15 @@ export default function App() {
       ? {
           ...currentUser,
           email: data.email || nextEmail,
-          updated_at: data.updated_at || nextProfile.updated_at
+          updated_at: data.updated_at || nextProfile.updated_at,
+          email_mfa_enabled:
+            data.email_mfa_enabled === undefined ? currentUser.email_mfa_enabled !== false : Boolean(data.email_mfa_enabled)
         }
       : {
           ...currentUser,
           email: nextEmail,
-          updated_at: nextProfile.updated_at
+          updated_at: nextProfile.updated_at,
+          email_mfa_enabled: currentUser.email_mfa_enabled !== false
         };
 
     setAllowedUsers((previous) =>
@@ -1392,7 +1411,9 @@ export default function App() {
           ? {
               ...user,
               email: nextEmail,
-              updated_at: nextProfile.updated_at
+              updated_at: nextProfile.updated_at,
+              email_mfa_enabled:
+                user.email_mfa_enabled === undefined ? currentUser.email_mfa_enabled !== false : Boolean(user.email_mfa_enabled)
             }
           : user
       )

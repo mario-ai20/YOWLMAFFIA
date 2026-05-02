@@ -46,6 +46,7 @@ export default function SettingsMenu({
   const [emailEditOpen, setEmailEditOpen] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMessage, setEmailMessage] = useState('');
+  const [emailMfaEnabled, setEmailMfaEnabled] = useState(user?.email_mfa_enabled !== false);
   const avatarInputRef = useRef(null);
 
   useEffect(() => {
@@ -58,8 +59,9 @@ export default function SettingsMenu({
     setAvatarUrl(user?.avatar_url || '');
     setAvatarPreview(user?.avatar_url || '');
     setEmailDraft(user?.email || '');
+    setEmailMfaEnabled(user?.email_mfa_enabled !== false);
     setAvatarFile(null);
-  }, [user?.bio, user?.status_message, user?.avatar_url, user?.username]);
+  }, [user?.bio, user?.status_message, user?.avatar_url, user?.username, user?.email_mfa_enabled]);
 
   useEffect(() => {
     if (!emailEditOpen) {
@@ -125,7 +127,8 @@ export default function SettingsMenu({
         bio,
         status_message: statusMessage,
         avatar_url: nextAvatarUrl,
-        theme_mode: themeDraft
+        theme_mode: themeDraft,
+        email_mfa_enabled: emailMfaEnabled
       });
       onThemeModeChange(themeDraft);
 
@@ -304,6 +307,19 @@ export default function SettingsMenu({
                       <Mail size={16} />
                       Wijzig e-mailadres
                     </button>
+                  </div>
+
+                  <div className={`settings-menu__toggle ${emailMfaEnabled ? 'is-active' : ''}`}>
+                    <div className="settings-menu__toggle-copy">
+                      <strong>MFA via mail</strong>
+                      <span>Vraag na je wachtwoord nog een e-mailcode bij het inloggen.</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={emailMfaEnabled}
+                      onChange={(event) => setEmailMfaEnabled(event.target.checked)}
+                      aria-label="MFA via mail aan of uit zetten"
+                    />
                   </div>
 
                   {emailEditOpen ? (

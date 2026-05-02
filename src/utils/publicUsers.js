@@ -6,6 +6,7 @@ export const DEFAULT_PUBLIC_USERS = [
     displayName: 'Mattiz',
     email: 'mattizhoornaert@hotmail.com',
     birth_date: '',
+    email_mfa_enabled: true,
     accent: '#ff6b9c',
     avatar_url: '',
     updated_at: '',
@@ -20,6 +21,7 @@ export const DEFAULT_PUBLIC_USERS = [
     displayName: 'Lukas',
     email: 'lukas.stevens@student.tsaam.be',
     birth_date: '',
+    email_mfa_enabled: true,
     accent: '#72d4ff',
     avatar_url: '',
     updated_at: '',
@@ -34,6 +36,7 @@ export const DEFAULT_PUBLIC_USERS = [
     displayName: 'Yoshi',
     email: 'bastiaenssens.yoshi@gmail.com',
     birth_date: '',
+    email_mfa_enabled: true,
     accent: '#a6ff7c',
     avatar_url: '',
     updated_at: '',
@@ -56,12 +59,38 @@ function normalizeThemeMode(value) {
   return mode === 'light' || mode === 'dark' || mode === 'system' ? mode : 'system';
 }
 
+function normalizeBoolean(value, fallback = true) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (['false', '0', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  if (['true', '1', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  return fallback;
+}
+
 export function normalizePublicAllowedUser(user) {
   return {
     username: String(user?.username || '').trim(),
     displayName: String(user?.display_name || user?.displayName || user?.username || '').trim(),
     email: String(user?.email || '').trim(),
     birth_date: String(user?.birth_date || user?.birthDate || '').trim(),
+    email_mfa_enabled: normalizeBoolean(user?.email_mfa_enabled, true),
     accent: user?.accent || '#72d4ff',
     avatar_url: String(user?.avatar_url || user?.avatarUrl || '').trim(),
     updated_at: String(user?.updated_at || user?.updatedAt || '').trim(),
@@ -146,7 +175,7 @@ export async function loadPublicAllowedUsers() {
   const selectAllowedUsers = async (fields) =>
     publicChatSupabase.from('allowed_users').select(fields).order('display_name', { ascending: true });
 
-  const primaryResult = await selectAllowedUsers('username, email, display_name, birth_date, accent, avatar_url, updated_at, last_online_at, bio, status_message, theme_mode, gender');
+  const primaryResult = await selectAllowedUsers('username, email, display_name, birth_date, email_mfa_enabled, accent, avatar_url, updated_at, last_online_at, bio, status_message, theme_mode, gender');
 
   let { data, error } = primaryResult;
 

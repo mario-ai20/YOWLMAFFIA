@@ -29,6 +29,10 @@ export default function PublicManagePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [buildNumber, setBuildNumber] = useState('');
+  const [buildState, setBuildState] = useState(null);
+  const [buildBusy, setBuildBusy] = useState(false);
+  const [buildMessage, setBuildMessage] = useState('');
   const [infoCurrent, setInfoCurrent] = useState(blankInfo('YOWLMAFFIA', 'Welkom op de publieke dashboardpagina.'));
   const [infoRules, setInfoRules] = useState(blankInfo('Regels', 'Wees vriendelijk, respectvol en hou het proper.'));
   const [updateVersion, setUpdateVersion] = useState('');
@@ -43,6 +47,14 @@ export default function PublicManagePage() {
   const [musicReleases, setMusicReleases] = useState([]);
 
   const isMattiz = normalizePublicUsername(currentUser?.username) === 'mattiz';
+
+  function normalizeBuildState(row = null) {
+    return {
+      buildNumber: String(row?.build_number || '').trim(),
+      publishedAt: String(row?.published_at || row?.created_at || '').trim(),
+      updatedAt: String(row?.updated_at || row?.published_at || row?.created_at || '').trim()
+    };
+  }
 
   useEffect(() => {
     if (!publicChatSupabase) {
@@ -98,7 +110,8 @@ export default function PublicManagePage() {
     async function bootstrapManage() {
       setLoadingPage(true);
 
-      const [infoResult, rulesResult, musicResult, updateResult] = await Promise.all([
+      const [buildResult, infoResult, rulesResult, musicResult, updateResult] = await Promise.all([
+        publicChatSupabase.from('app_build_state').select('build_number, published_at, created_at, updated_at').eq('id', 'current').maybeSingle(),
         publicChatSupabase.from('app_info_blocks').select('*').eq('id', 'current').maybeSingle(),
         publicChatSupabase.from('app_info_blocks').select('*').eq('id', 'rules').maybeSingle(),
         loadMusicReleasesFromDatabase(publicChatSupabase).catch(() => []),
@@ -112,6 +125,12 @@ export default function PublicManagePage() {
 
       if (cancelled) {
         return;
+      }
+
+      if (buildResult?.data) {
+        const nextBuildState = normalizeBuildState(buildResult.data);
+        setBuildState(nextBuildState);
+        setBuildNumber(nextBuildState.buildNumber);
       }
 
       if (infoResult?.data) {
@@ -144,6 +163,11 @@ export default function PublicManagePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_info_blocks' }, bootstrapManage)
       .subscribe();
 
+    const buildChannel = publicChatSupabase
+      .channel('public-manage-build-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_build_state' }, bootstrapManage)
+      .subscribe();
+
     const updateChannel = publicChatSupabase
       .channel('public-manage-updates-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_update_releases' }, bootstrapManage)
@@ -157,6 +181,7 @@ export default function PublicManagePage() {
     return () => {
       cancelled = true;
       publicChatSupabase.removeChannel(infoChannel);
+      publicChatSupabase.removeChannel(buildChannel);
       publicChatSupabase.removeChannel(updateChannel);
       publicChatSupabase.removeChannel(musicChannel);
     };
@@ -217,6 +242,52 @@ export default function PublicManagePage() {
       setError(saveError?.message || 'Opslaan mislukt.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveBuild(event) {
+    event.preventDefault();
+
+    if (!publicChatSupabase || !isMattiz) {
+      return;
+    }
+
+    setBuildBusy(true);
+    setBuildMessage('');
+    setError('');
+
+    try {
+      const nextBuildNumber = String(buildNumber || '').trim();
+      if (!nextBuildNumber) {
+        throw new Error('Vul een buildnummer in.');
+      }
+
+      const now = new Date().toISOString();
+      const { error: saveError } = await publicChatSupabase.from('app_build_state').upsert(
+        {
+          id: 'current',
+          build_number: nextBuildNumber,
+          published_at: now,
+          updated_at: now
+        },
+        { onConflict: 'id' }
+      );
+
+      if (saveError) {
+        throw saveError;
+      }
+
+      setBuildState({
+        buildNumber: nextBuildNumber,
+        publishedAt: now,
+        updatedAt: now
+      });
+      setBuildMessage('Buildnummer opgeslagen.');
+    } catch (buildError) {
+      setBuildMessage('');
+      setError(buildError?.message || 'Buildnummer opslaan mislukt.');
+    } finally {
+      setBuildBusy(false);
     }
   }
 
@@ -369,6 +440,33 @@ export default function PublicManagePage() {
         </header>
 
         <div className="public-manage__grid">
+          <form className="panel public-manage__card" onSubmit={handleSaveBuild}>
+            <div className="panel__header panel__header--compact">
+              <span className="eyebrow">Build</span>
+              <h2>Buildnummer beheren</h2>
+            </div>
+
+            <label className="field">
+              <span>Buildnummer</span>
+              <input
+                className="input"
+                value={buildNumber}
+                onChange={(event) => setBuildNumber(event.target.value)}
+                placeholder="Bijvoorbeeld 2.2.0"
+              />
+              <small className="settings-menu__hint">
+                Huidig online buildnummer: {buildState?.buildNumber || 'nog niet ingesteld'}
+              </small>
+            </label>
+
+            <button className="button button--primary" type="submit" disabled={buildBusy}>
+              <Save size={16} />
+              {buildBusy ? 'Opslaan...' : 'Buildnummer opslaan'}
+            </button>
+
+            {buildMessage ? <p className="settings-menu__message">{buildMessage}</p> : null}
+          </form>
+
           <form className="panel public-manage__card" onSubmit={handleSaveInfo}>
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Info</span>
