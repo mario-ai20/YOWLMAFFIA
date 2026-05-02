@@ -1481,6 +1481,7 @@ a {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.4rem;
+  align-items: center;
 }
 
 .music-release-card__delete {
@@ -3093,7 +3094,8 @@ a {
   display: flex;
   gap: 0.7rem;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .public-manage {
@@ -3103,13 +3105,120 @@ a {
 
 .public-manage__grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 1rem;
+  align-items: start;
 }
 
 .public-manage__card {
   display: grid;
+  gap: 1rem;
+  padding: 1.15rem;
+  min-width: 0;
+}
+
+.public-manage__card--build {
+  grid-column: span 4;
+}
+
+.public-manage__card--info {
+  grid-column: span 8;
+}
+
+.public-manage__card--updates {
+  grid-column: span 6;
+}
+
+.public-manage__card--music {
+  grid-column: span 6;
+}
+
+.public-manage__music-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
+}
+
+.public-manage__cover-upload {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.95rem;
+  align-items: center;
+  padding: 0.9rem;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+}
+
+.public-manage__cover-preview {
+  width: 92px;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 22%, transparent), transparent 56%),
+    color-mix(in srgb, var(--bg-soft) 78%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.public-manage__cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.public-manage__cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 0.55rem;
+  font-size: 0.78rem;
+}
+
+.public-manage__cover-placeholder svg {
+  color: var(--accent);
+}
+
+.public-manage__cover-copy {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.public-manage__cover-label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--eyebrow);
+  font-weight: 700;
+}
+
+.public-manage__cover-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.public-manage__cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.public-manage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.public-manage__actions .button {
+  min-width: min(100%, 240px);
 }
 
 .public-manage__preview {
@@ -3480,5 +3589,22 @@ a {
 
   .public-shell__actions {
     flex-wrap: wrap;
+  }
+
+  .public-manage__card--build,
+  .public-manage__card--info,
+  .public-manage__card--updates,
+  .public-manage__card--music {
+    grid-column: auto;
+  }
+
+  .public-manage__music-grid,
+  .public-manage__cover-upload {
+    grid-template-columns: 1fr;
+  }
+
+  .public-manage__cover-preview {
+    width: 100%;
+    max-width: 180px;
   }
 }

@@ -1,4 +1,4 @@
-import { Check, RefreshCw, Save, Sparkles } from 'lucide-react';
+import { Check, RefreshCw, Save, Sparkles, Upload } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import MusicReleaseCard from '../components/MusicReleaseCard';
@@ -10,13 +10,26 @@ import {
   normalizePublicUsername,
   resolvePublicUserFromSession
 } from '../utils/publicUsers';
-import { loadMusicReleases as loadMusicReleasesFromDatabase, normalizeMusicRelease } from '../utils/musicReleases';
+import {
+  createSpotifySearchUrl,
+  loadMusicReleases as loadMusicReleasesFromDatabase,
+  normalizeMusicRelease
+} from '../utils/musicReleases';
 
 function blankInfo(title, body) {
   return {
     title,
     body
   };
+}
+
+function slugifyStorageSegment(value, fallback = 'release') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || fallback;
 }
 
 export default function PublicManagePage() {
@@ -43,7 +56,8 @@ export default function PublicManagePage() {
   const [musicTitle, setMusicTitle] = useState('');
   const [musicArtistName, setMusicArtistName] = useState('YOWLMAFFIA');
   const [musicSpotifyUrl, setMusicSpotifyUrl] = useState('');
-  const [musicCoverUrl, setMusicCoverUrl] = useState('');
+  const [musicCoverFile, setMusicCoverFile] = useState(null);
+  const [musicCoverPreview, setMusicCoverPreview] = useState('');
   const [musicReleases, setMusicReleases] = useState([]);
 
   const isMattiz = normalizePublicUsername(currentUser?.username) === 'mattiz';
@@ -98,6 +112,20 @@ export default function PublicManagePage() {
   useEffect(() => {
     setCurrentUser(resolvePublicUserFromSession(session, allowedUsers));
   }, [session, allowedUsers]);
+
+  useEffect(() => {
+    if (!musicCoverFile) {
+      setMusicCoverPreview('');
+      return undefined;
+    }
+
+    const previewUrl = URL.createObjectURL(musicCoverFile);
+    setMusicCoverPreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [musicCoverFile]);
 
   useEffect(() => {
     if (!currentUser || !isMattiz || !isPublicChatSupabaseConfigured || !publicChatSupabase) {
@@ -349,11 +377,40 @@ export default function PublicManagePage() {
         throw new Error('Geef een titel op.');
       }
 
+      let coverUrl = '';
+      let coverStoragePath = '';
+
+      if (musicCoverFile) {
+        const titleSegment = slugifyStorageSegment(musicTitle, 'release');
+        const artistSegment = slugifyStorageSegment(musicArtistName, 'artist');
+        const extensionSource = String(musicCoverFile.name || '').trim();
+        const nextExtension = (extensionSource.includes('.') ? extensionSource.split('.').pop() : musicCoverFile.type.split('/').pop()) || 'png';
+        const safeExtension = String(nextExtension || 'png')
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '') || 'png';
+        const uploadPath = `releases/${titleSegment}-${artistSegment}-${Date.now()}.${safeExtension}`;
+
+        const { error: uploadError } = await publicChatSupabase.storage.from('covers').upload(uploadPath, musicCoverFile, {
+          upsert: true,
+          contentType: musicCoverFile.type || 'image/png'
+        });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        coverStoragePath = uploadPath;
+        coverUrl = publicChatSupabase.storage.from('covers').getPublicUrl(uploadPath).data.publicUrl;
+      }
+
+      const spotifyUrl = musicSpotifyUrl.trim() || createSpotifySearchUrl(musicTitle.trim(), musicArtistName.trim() || 'YOWLMAFFIA');
       const { error: insertError } = await publicChatSupabase.from('music_releases').insert({
         title: musicTitle.trim(),
         artist_name: musicArtistName.trim() || 'YOWLMAFFIA',
-        spotify_url: musicSpotifyUrl.trim(),
-        cover_url: musicCoverUrl.trim()
+        spotify_url: spotifyUrl,
+        cover_url: coverUrl,
+        cover_storage_path: coverStoragePath
       });
 
       if (insertError) {
@@ -363,7 +420,7 @@ export default function PublicManagePage() {
       setMusicTitle('');
       setMusicArtistName('YOWLMAFFIA');
       setMusicSpotifyUrl('');
-      setMusicCoverUrl('');
+      setMusicCoverFile(null);
       setMessage('Spotify-banner toegevoegd.');
     } catch (musicError) {
       setError(musicError?.message || 'Banner toevoegen mislukt.');
@@ -385,6 +442,15 @@ export default function PublicManagePage() {
       const { error: deleteError } = await publicChatSupabase.from('music_releases').delete().eq('id', release.id);
       if (deleteError) {
         throw deleteError;
+      }
+
+      const coverPath = String(release.coverStoragePath || '').trim();
+      if (coverPath) {
+        try {
+          await publicChatSupabase.storage.from('covers').remove([coverPath]);
+        } catch {
+          // Leave the banner removal successful even if storage cleanup fails.
+        }
       }
 
       setMusicReleases((previous) => previous.filter((item) => item.id !== release.id));
@@ -440,7 +506,7 @@ export default function PublicManagePage() {
         </header>
 
         <div className="public-manage__grid">
-          <form className="panel public-manage__card" onSubmit={handleSaveBuild}>
+          <form className="panel public-manage__card public-manage__card--build" onSubmit={handleSaveBuild}>
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Build</span>
               <h2>Buildnummer beheren</h2>
@@ -467,7 +533,7 @@ export default function PublicManagePage() {
             {buildMessage ? <p className="settings-menu__message">{buildMessage}</p> : null}
           </form>
 
-          <form className="panel public-manage__card" onSubmit={handleSaveInfo}>
+          <form className="panel public-manage__card public-manage__card--info" onSubmit={handleSaveInfo}>
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Info</span>
               <h2>Login en dashboard tekst</h2>
@@ -521,7 +587,7 @@ export default function PublicManagePage() {
             </button>
           </form>
 
-          <form className="panel public-manage__card" onSubmit={handlePublishUpdate}>
+          <form className="panel public-manage__card public-manage__card--updates" onSubmit={handlePublishUpdate}>
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Updates</span>
               <h2>Nieuwe release publiceren</h2>
@@ -572,31 +638,33 @@ export default function PublicManagePage() {
             </button>
           </form>
 
-          <form className="panel public-manage__card" onSubmit={handleSaveMusicRelease}>
+          <form className="panel public-manage__card public-manage__card--music" onSubmit={handleSaveMusicRelease}>
             <div className="panel__header panel__header--compact">
               <span className="eyebrow">Songs</span>
               <h2>Spotify-banner toevoegen</h2>
             </div>
 
-            <label className="field">
-              <span>Titel</span>
-              <input
-                className="input"
-                value={musicTitle}
-                onChange={(event) => setMusicTitle(event.target.value)}
-                placeholder="VIERA D"
-              />
-            </label>
+            <div className="public-manage__music-grid">
+              <label className="field">
+                <span>Titel</span>
+                <input
+                  className="input"
+                  value={musicTitle}
+                  onChange={(event) => setMusicTitle(event.target.value)}
+                  placeholder="VIERA D"
+                />
+              </label>
 
-            <label className="field">
-              <span>Artiest</span>
-              <input
-                className="input"
-                value={musicArtistName}
-                onChange={(event) => setMusicArtistName(event.target.value)}
-                placeholder="YOWLMAFFIA"
-              />
-            </label>
+              <label className="field">
+                <span>Artiest</span>
+                <input
+                  className="input"
+                  value={musicArtistName}
+                  onChange={(event) => setMusicArtistName(event.target.value)}
+                  placeholder="YOWLMAFFIA"
+                />
+              </label>
+            </div>
 
             <label className="field">
               <span>Spotify-link</span>
@@ -608,20 +676,53 @@ export default function PublicManagePage() {
               />
             </label>
 
-            <label className="field">
-              <span>Cover-url</span>
-              <input
-                className="input"
-                value={musicCoverUrl}
-                onChange={(event) => setMusicCoverUrl(event.target.value)}
-                placeholder="https://..."
-              />
-            </label>
+            <div className="public-manage__cover-upload">
+              <div className="public-manage__cover-preview">
+                {musicCoverPreview ? (
+                  <img src={musicCoverPreview} alt="Cover preview" />
+                ) : (
+                  <div className="public-manage__cover-placeholder">
+                    <Sparkles size={18} />
+                    <span>Geen foto gekozen</span>
+                  </div>
+                )}
+              </div>
 
-            <button className="button button--primary" type="submit" disabled={saving}>
-              <Sparkles size={16} />
-              Banner toevoegen
-            </button>
+              <div className="public-manage__cover-copy">
+                <span className="public-manage__cover-label">Bannerfoto</span>
+                <p>Upload een afbeelding. Die wordt opgeslagen in Supabase Storage en direct gebruikt als bannercover.</p>
+
+                <div className="public-manage__cover-actions">
+                  <label className="button button--secondary button--compact">
+                    <Upload size={16} />
+                    Kies foto
+                    <input
+                      className="sr-only"
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setMusicCoverFile(event.target.files?.[0] || null)}
+                    />
+                  </label>
+
+                  {musicCoverFile ? (
+                    <button className="button button--ghost button--compact" type="button" onClick={() => setMusicCoverFile(null)}>
+                      Verwijder foto
+                    </button>
+                  ) : null}
+                </div>
+
+                <small className="settings-menu__hint">
+                  {musicCoverFile ? musicCoverFile.name : 'Je hoeft geen URL meer te plakken. Een foto uploaden is genoeg.'}
+                </small>
+              </div>
+            </div>
+
+            <div className="public-manage__actions">
+              <button className="button button--primary" type="submit" disabled={saving}>
+                <Sparkles size={16} />
+                Banner toevoegen
+              </button>
+            </div>
           </form>
         </div>
 
