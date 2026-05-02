@@ -248,12 +248,19 @@ export default function PublicSettingsPage() {
         email_mfa_enabled: emailMfaEnabled
       };
 
-      const { error } = await publicChatSupabase.from('allowed_users').upsert(payload, {
-        onConflict: 'username'
-      });
+      const { data, error } = await publicChatSupabase
+        .from('allowed_users')
+        .update(payload)
+        .eq('username', currentUser.username)
+        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode, email_mfa_enabled')
+        .maybeSingle();
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        throw new Error('Je profiel kon niet worden opgeslagen. Controleer of je account online bestaat.');
       }
 
       setAvatarFile(null);
