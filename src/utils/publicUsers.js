@@ -48,6 +48,8 @@ export const DEFAULT_PUBLIC_USERS = [
   }
 ];
 
+export const PUBLIC_PRESENCE_STALE_MS = 65000;
+
 export function normalizePublicUsername(value) {
   return String(value || '')
     .trim()
@@ -122,6 +124,20 @@ export function resolvePublicUserAvatar(value, allowedUsers = DEFAULT_PUBLIC_USE
 
 export function resolvePublicUserDisplayName(value, allowedUsers = DEFAULT_PUBLIC_USERS) {
   return findPublicAllowedUser(value, allowedUsers)?.displayName || '';
+}
+
+export function resolvePublicPresenceLabel(user, nowTick = Date.now(), staleMs = PUBLIC_PRESENCE_STALE_MS) {
+  const lastOnlineAt = String(user?.last_online_at || '').trim();
+  if (!lastOnlineAt) {
+    return 'offline';
+  }
+
+  const lastOnlineTime = new Date(lastOnlineAt).getTime();
+  if (!Number.isFinite(lastOnlineTime)) {
+    return 'offline';
+  }
+
+  return nowTick - lastOnlineTime <= staleMs ? 'online' : 'offline';
 }
 
 export function publicUsernameToEmail(username, allowedUsers = DEFAULT_PUBLIC_USERS) {

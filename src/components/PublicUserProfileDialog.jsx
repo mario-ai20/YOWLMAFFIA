@@ -3,18 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
 import UserAvatar from './UserAvatar';
 import { formatRelativeTime } from '../utils/dates';
-import { normalizePublicUsername } from '../utils/publicUsers';
-
-function resolvePresenceLabel(user) {
-  const lastOnlineAt = user?.last_online_at || user?.updated_at || '';
-  if (!lastOnlineAt) {
-    return 'online';
-  }
-
-  const lastOnlineTime = new Date(lastOnlineAt).getTime();
-  const diffMinutes = Math.max(0, Math.floor((Date.now() - lastOnlineTime) / 60000));
-  return diffMinutes <= 5 ? 'online' : 'offline';
-}
+import { normalizePublicUsername, resolvePublicPresenceLabel } from '../utils/publicUsers';
 
 export default function PublicUserProfileDialog({
   open = false,
@@ -48,9 +37,9 @@ export default function PublicUserProfileDialog({
     return null;
   }
 
-  const presenceLabel = resolvePresenceLabel(user);
+  const presenceLabel = resolvePublicPresenceLabel(user);
   const lastUpdated = formatRelativeTime(user.updated_at || user.avatar_updated_at || user.profile_updated_at || '');
-  const lastOnline = formatRelativeTime(user.last_online_at || user.updated_at || '');
+  const lastOnline = formatRelativeTime(user.last_online_at || '');
 
   return createPortal(
     <div className="profile-dialog" role="dialog" aria-modal="true" aria-label={`Profiel van ${user.displayName || user.username || 'gebruiker'}`}>

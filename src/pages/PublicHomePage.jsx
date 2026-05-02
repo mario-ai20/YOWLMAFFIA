@@ -325,8 +325,7 @@ export default function PublicHomePage() {
         theme_mode: 'system',
         email_mfa_enabled: true,
         avatar_url: '',
-        updated_at: new Date().toISOString(),
-        last_online_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       };
 
       const { error: profileError } = await publicChatSupabase

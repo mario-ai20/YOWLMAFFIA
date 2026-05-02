@@ -244,7 +244,6 @@ export default function PublicSettingsPage() {
         theme_mode: themeMode,
         avatar_url: avatarUrl,
         updated_at: nextUpdatedAt,
-        last_online_at: currentUser.last_online_at || nextUpdatedAt,
         email_mfa_enabled: emailMfaEnabled
       };
 

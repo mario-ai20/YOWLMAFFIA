@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
 import UserAvatar from './UserAvatar';
 import { normalizePublicUsername } from '../utils/publicUsers';
+import { publicChatSupabase } from '../utils/supabase';
 
 function resolveThemeMode(mode) {
   if (mode === 'light' || mode === 'dark') {
@@ -75,6 +76,36 @@ export default function PublicShell({
 
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!publicChatSupabase || !user?.username) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function touchPresence() {
+      const nextOnlineAt = new Date().toISOString();
+      const { error } = await publicChatSupabase
+        .from('allowed_users')
+        .update({ last_online_at: nextOnlineAt })
+        .eq('username', user.username);
+
+      if (!cancelled && error) {
+        console.error(error);
+      }
+    }
+
+    touchPresence();
+    const timer = window.setInterval(() => {
+      void touchPresence();
+    }, 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [user?.username]);
 
   return (
     <div className="public-shell">

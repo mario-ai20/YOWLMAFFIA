@@ -10,22 +10,12 @@ import {
   findPublicAllowedUser,
   loadPublicAllowedUsers,
   normalizePublicUsername,
+  resolvePublicPresenceLabel,
   resolvePublicUserAvatar,
   resolvePublicUserDisplayName,
   resolvePublicUserFromSession
 } from '../utils/publicUsers';
 import { formatRelativeTime } from '../utils/dates';
-
-function resolvePresenceLabel(user, nowTick = Date.now()) {
-  const lastOnlineAt = user?.last_online_at || user?.updated_at || '';
-  if (!lastOnlineAt) {
-    return 'online';
-  }
-
-  const lastOnlineTime = new Date(lastOnlineAt).getTime();
-  const diffMinutes = Math.max(0, Math.floor((nowTick - lastOnlineTime) / 60000));
-  return diffMinutes <= 5 ? 'online' : 'offline';
-}
 
 export default function PublicChatPage() {
   const navigate = useNavigate();
@@ -89,42 +79,12 @@ export default function PublicChatPage() {
   }, [session, allowedUsers]);
 
   const onlinePeople = useMemo(() => {
-    return allowedUsers.filter((user) => resolvePresenceLabel(user, nowTick) === 'online');
+    return allowedUsers.filter((user) => resolvePublicPresenceLabel(user, nowTick) === 'online');
   }, [allowedUsers, nowTick]);
 
   const offlinePeople = useMemo(() => {
-    return allowedUsers.filter((user) => resolvePresenceLabel(user, nowTick) === 'offline');
+    return allowedUsers.filter((user) => resolvePublicPresenceLabel(user, nowTick) === 'offline');
   }, [allowedUsers, nowTick]);
-
-  useEffect(() => {
-    if (!publicChatSupabase || !currentUser) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    async function updatePresence() {
-      const nextOnlineAt = new Date().toISOString();
-      const { error } = await publicChatSupabase
-        .from('allowed_users')
-        .update({ last_online_at: nextOnlineAt, updated_at: nextOnlineAt })
-        .eq('username', currentUser.username);
-
-      if (!cancelled && error) {
-        console.error(error);
-      }
-    }
-
-    updatePresence();
-    const timer = window.setInterval(() => {
-      void updatePresence();
-    }, 120000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [currentUser]);
 
   useEffect(() => {
     if (!publicChatSupabase || !currentUser) {
