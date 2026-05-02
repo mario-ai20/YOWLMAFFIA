@@ -197,9 +197,10 @@ a {
   color: var(--text);
   outline: none;
   transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    background 140ms ease;
 }
 
 .input {
@@ -247,11 +248,12 @@ a {
 .tab-button {
   border: 1px solid transparent;
   transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease,
-    box-shadow 180ms ease,
-    color 180ms ease;
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    filter 140ms ease;
 }
 
 .button {
@@ -270,7 +272,17 @@ a {
 .play-button:hover,
 .nav-link:hover,
 .tab-button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
+  filter: brightness(1.03);
+}
+
+.button:active,
+.icon-button:active,
+.play-button:active,
+.nav-link:active,
+.tab-button:active {
+  transform: translateY(0);
+  filter: brightness(0.99);
 }
 
 .button:disabled {
@@ -283,7 +295,7 @@ a {
   color: var(--accent-contrast);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--accent) 80%, white), var(--accent-strong));
-  box-shadow: 0 20px 40px var(--accent-shadow);
+  box-shadow: 0 16px 32px var(--accent-shadow);
 }
 
 .button--secondary {
@@ -2019,6 +2031,23 @@ a {
   appearance: none;
   -webkit-appearance: none;
   font: inherit;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
+}
+
+.active-editors__pill:hover {
+  transform: translateY(-0.5px);
+  filter: brightness(1.03);
+  border-color: color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.12));
+}
+
+.active-editors__pill:active {
+  transform: translateY(0);
+  filter: brightness(0.99);
 }
 
 .active-editors__pill .user-avatar {
@@ -2127,11 +2156,26 @@ a {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
+}
+
+.track-card:hover {
+  transform: translateY(-0.5px);
+  filter: brightness(1.02);
 }
 
 .track-card.is-active {
   border-color: color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.1));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 18px 40px var(--accent-shadow);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 16px 32px var(--accent-shadow);
 }
 
 .track-card__cover {
@@ -2357,14 +2401,22 @@ a {
   width: 100%;
   cursor: pointer;
   transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease;
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
 }
 
 .chat-person:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
+  filter: brightness(1.03);
   border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+
+.chat-person:active {
+  transform: translateY(0);
+  filter: brightness(0.99);
 }
 
 .chat-person.is-self {
