@@ -213,9 +213,33 @@ function ProtectedLayout({
   );
 }
 
-function normalizePresenceUsername(value) {
-  return normalizeUsername(value);
-}
+  function normalizePresenceUsername(value) {
+    return normalizeUsername(value);
+  }
+
+  function getCurrentUserMatchFilter(user) {
+    if (!user) {
+      return null;
+    }
+
+    const id = String(user.id || '').trim();
+    const email = String(user.email || '').trim();
+    const username = String(user.username || '').trim();
+
+    if (id) {
+      return { column: 'id', value: id };
+    }
+
+    if (email) {
+      return { column: 'email', value: email };
+    }
+
+    if (username) {
+      return { column: 'username', value: username };
+    }
+
+    return null;
+  }
 
 function EditorRoute(props) {
   const { songId } = useParams();
@@ -702,10 +726,11 @@ export default function App() {
         return;
       }
 
-      const { error } = await supabase
-        .from('allowed_users')
-        .update({ last_online_at: new Date(timestamp).toISOString() })
-        .eq('email', currentUser.email);
+        const matchFilter = getCurrentUserMatchFilter(currentUser);
+        const { error } = await supabase
+          .from('allowed_users')
+          .update({ last_online_at: new Date(timestamp).toISOString() })
+          .eq(matchFilter?.column || 'email', matchFilter?.value || currentUser.email);
 
       if (error) {
         console.error(error);
@@ -1150,12 +1175,14 @@ export default function App() {
       return nextCurrentUser;
     }
 
-    const { data, error } = await supabase
-      .from('allowed_users')
-      .update(nextProfile)
-      .eq('email', currentUser.email)
-      .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode')
-      .maybeSingle();
+      const matchFilter = getCurrentUserMatchFilter(currentUser);
+
+      const { data, error } = await supabase
+        .from('allowed_users')
+        .update(nextProfile)
+        .eq(matchFilter?.column || 'email', matchFilter?.value || currentUser.email)
+        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message, theme_mode')
+        .maybeSingle();
 
     if (error) {
       console.error(error);
@@ -1334,12 +1361,14 @@ export default function App() {
       updated_at: new Date().toISOString()
     };
 
-    const { data, error: updateError } = await supabase
-      .from('allowed_users')
-      .update(nextProfile)
-      .eq('username', currentUser.username)
-      .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message')
-      .maybeSingle();
+      const matchFilter = getCurrentUserMatchFilter(currentUser);
+
+      const { data, error: updateError } = await supabase
+        .from('allowed_users')
+        .update(nextProfile)
+        .eq(matchFilter?.column || 'username', matchFilter?.value || currentUser.username)
+        .select('username, email, display_name, accent, avatar_url, updated_at, bio, status_message')
+        .maybeSingle();
 
     if (updateError) {
       throw updateError;

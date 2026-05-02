@@ -52,6 +52,7 @@ function normalizeThemeMode(value) {
 
 export function normalizeAllowedUser(user) {
   return {
+    id: String(user?.id || user?.user_id || '').trim(),
     username: String(user?.username || '').trim(),
     displayName: String(user?.display_name || user?.displayName || user?.username || '').trim(),
     email: String(user?.email || '').trim(),
@@ -125,18 +126,18 @@ export async function loadAllowedUsers() {
   const selectAllowedUsers = async (fields) =>
     supabase.from('allowed_users').select(fields).order('display_name', { ascending: true });
 
-  const primaryResult = await selectAllowedUsers('username, email, display_name, accent, avatar_url, updated_at, last_online_at, bio, status_message, theme_mode');
+  const primaryResult = await selectAllowedUsers('id, username, email, display_name, accent, avatar_url, updated_at, last_online_at, bio, status_message, theme_mode');
 
   let { data, error } = primaryResult;
 
   if (error) {
-    const fallbackResult = await selectAllowedUsers('username, email, display_name, avatar_url, updated_at, last_online_at, bio, status_message');
+    const fallbackResult = await selectAllowedUsers('id, username, email, display_name, avatar_url, updated_at, last_online_at, bio, status_message');
     data = fallbackResult.data;
     error = fallbackResult.error;
   }
 
   if (error) {
-    const minimalResult = await selectAllowedUsers('username, email, display_name');
+    const minimalResult = await selectAllowedUsers('id, username, email, display_name');
     data = minimalResult.data;
     error = minimalResult.error;
   }
@@ -149,11 +150,13 @@ export async function loadAllowedUsers() {
 }
 
 export function resolveUserFromSession(session, allowedUsers = DEFAULT_ALLOWED_USERS) {
+  const userId = session?.user?.id || '';
   const username = session?.user?.user_metadata?.username || session?.user?.user_metadata?.name || '';
   const email = session?.user?.email || '';
   const displayName = session?.user?.user_metadata?.display_name || session?.user?.user_metadata?.displayName || '';
 
   const matched =
+    allowedUsers.find((user) => normalizeUsername(user.id) === normalizeUsername(userId)) ||
     findAllowedUser(username, allowedUsers) ||
     findAllowedUser(displayName, allowedUsers) ||
     allowedUsers.find((user) => normalizeUsername(user.email) === normalizeUsername(email)) ||
