@@ -1,4 +1,4 @@
-import { Bell, LayoutDashboard, LogOut, MessagesSquare, ShieldEllipsis, Settings2 } from 'lucide-react';
+import { Bell, LayoutDashboard, LogOut, MessagesSquare, ShieldEllipsis } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
 import BrandMark from './BrandMark';
@@ -90,13 +90,9 @@ export default function PublicShell({
             <MessagesSquare size={16} />
             Public chat
           </NavLink>
-          <NavLink end to="/public/settings" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
-            <ShieldEllipsis size={16} />
-            Instellingen
-          </NavLink>
           {isMattiz ? (
             <NavLink end to="/public/beheren" className={({ isActive }) => `nav-link nav-link--ghost ${isActive ? 'is-active' : ''}`.trim()}>
-              <Settings2 size={16} />
+              <ShieldEllipsis size={16} />
               Beheren
             </NavLink>
           ) : null}
