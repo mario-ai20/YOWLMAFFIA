@@ -1,5 +1,6 @@
 import { ArrowLeft, KeyRound, LockKeyhole, LogIn, MailCheck, RefreshCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import BrandMark from '../components/BrandMark';
 import InfoNoticeCard from '../components/InfoNoticeCard';
 import UpdateNoticeCard from '../components/UpdateNoticeCard';
@@ -107,6 +108,11 @@ export default function LoginPage({
 
   return (
     <section className="login-page">
+      <Link className="button button--ghost login-page__back-button" to="/">
+        <ArrowLeft size={16} />
+        Terug naar publiek
+      </Link>
+
       <div className="login-page__panel">
         <div className="login-page__hero">
           <BrandMark stacked />

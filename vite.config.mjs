@@ -28,14 +28,6 @@ export default defineConfig({
             }
           }
 
-          if (id.includes('/src/components/')) {
-            return 'app-components';
-          }
-
-          if (id.includes('/src/pages/')) {
-            return 'app-pages';
-          }
-
           return undefined;
         }
       }

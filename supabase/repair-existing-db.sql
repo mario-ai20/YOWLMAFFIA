@@ -60,6 +60,80 @@ alter table public.songs
 update public.songs
 set status = coalesce(status, 'concept');
 
+create table if not exists public.app_build_state (
+  id text primary key default 'current',
+  build_number text not null default '2.2.0',
+  published_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.app_build_state
+  add column if not exists build_number text not null default '2.2.0';
+alter table public.app_build_state
+  add column if not exists published_at timestamptz not null default now();
+alter table public.app_build_state
+  add column if not exists created_at timestamptz not null default now();
+alter table public.app_build_state
+  add column if not exists updated_at timestamptz not null default now();
+
+grant select on table public.app_build_state to anon;
+grant select on table public.app_build_state to authenticated;
+grant insert, update on table public.app_build_state to authenticated;
+
+alter table public.app_build_state enable row level security;
+
+drop policy if exists "Anyone can read app build state" on public.app_build_state;
+create policy "Anyone can read app build state"
+  on public.app_build_state
+  for select
+  to public
+  using (true);
+
+drop policy if exists "Mattiz can publish app build state" on public.app_build_state;
+create policy "Mattiz can publish app build state"
+  on public.app_build_state
+  for insert
+  to authenticated
+  with check (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+drop policy if exists "Mattiz can update app build state" on public.app_build_state;
+create policy "Mattiz can update app build state"
+  on public.app_build_state
+  for update
+  to authenticated
+  using (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz')
+  with check (public.is_allowed_yowl_user() and lower(public.current_allowed_username()) = 'mattiz');
+
+insert into public.app_build_state (id, build_number)
+values ('current', '2.2.0')
+on conflict (id) do update
+set build_number = coalesce(public.app_build_state.build_number, excluded.build_number),
+    updated_at = now();
+
+create or replace function public.touch_app_build_state_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists app_build_state_touch_updated_at on public.app_build_state;
+create trigger app_build_state_touch_updated_at
+before update on public.app_build_state
+for each row
+execute function public.touch_app_build_state_updated_at();
+
+do $$
+begin
+  alter publication supabase_realtime add table public.app_build_state;
+exception
+  when duplicate_object then null;
+end $$;
+
 alter table public.messages
   add column if not exists reply_to_message_id uuid;
 alter table public.messages

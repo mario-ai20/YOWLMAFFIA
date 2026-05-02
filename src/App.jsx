@@ -20,6 +20,11 @@ const EditorPage = lazy(() => import('./components/EditorPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
+const PublicHomePage = lazy(() => import('./pages/PublicHomePage'));
+const PublicDashboardPage = lazy(() => import('./pages/PublicDashboardPage'));
+const PublicChatPage = lazy(() => import('./pages/PublicChatPage'));
+const PublicSettingsPage = lazy(() => import('./pages/PublicSettingsPage'));
+const PublicManagePage = lazy(() => import('./pages/PublicManagePage'));
 const SetupNotice = lazy(() => import('./components/SetupNotice'));
 
 function sanitizeSegment(value) {
@@ -2015,6 +2020,32 @@ export default function App() {
     >
       <Routes>
         <Route
+          path="/"
+          element={
+            <PublicHomePage />
+          }
+        />
+        <Route
+          path="/public"
+          element={<Navigate to="/public/dashboard" replace />}
+        />
+        <Route
+          path="/public/dashboard"
+          element={<PublicDashboardPage />}
+        />
+        <Route
+          path="/public/chat"
+          element={<PublicChatPage />}
+        />
+        <Route
+          path="/public/settings"
+          element={<PublicSettingsPage />}
+        />
+        <Route
+          path="/public/beheren"
+          element={<PublicManagePage />}
+        />
+        <Route
           path="/login"
           element={
             <LoginRoute
@@ -2172,7 +2203,7 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to={activeUser ? '/dashboard' : '/login'} replace />} />
         </Route>
-        <Route path="/" element={<Navigate to={activeUser ? '/dashboard' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to={activeUser ? '/dashboard' : '/'} replace />} />
       </Routes>
       <CreateSongDialog
         open={createSongOpen}
